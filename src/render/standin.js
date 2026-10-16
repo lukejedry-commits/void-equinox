@@ -8,8 +8,8 @@ import { addRim } from './rim.js';
 
 export const STANDIN = {
   ember: 0xff6a20,
-  cloakTop: 0x7d7b78,   // ash grey
-  cloakHem: 0x1f1e1e,   // charcoal
+  cloakTop: 0x5a5652,   // ash grey, desaturated (reads grey under every LightingProfile)
+  cloakHem: 0x262422,   // charcoal
   body: 0x8a8a8a,       // mannequin grey
   rim: 0.15,
   recoveryDefault: 0.15, // fixed dim on the slice
