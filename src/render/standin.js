@@ -5,6 +5,7 @@
 // Palette rule: ash-grey/charcoal + ember only. Never sinking smoke, green-ochre or bruise-violet.
 import * as THREE from 'three';
 import { addRim } from './rim.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export const STANDIN = {
   ember: 0xff6a20,
@@ -63,9 +64,10 @@ export function createStandin() {
   const root = new THREE.Group(); root.name = 'solenius-standin';
   const rig = new THREE.Group(); rig.position.y = STANDIN.feetY; root.add(rig); // feet at capsule bottom
   const bodyMat = new THREE.MeshStandardMaterial({ color: STANDIN.body, roughness: 0.8 });
+  const faceMat = new THREE.MeshStandardMaterial({ color: 0x0b0a0a, roughness: 1 });
   const cloakMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.95, side: THREE.DoubleSide, transparent: true,
     emissive: STANDIN.cloakEmissive, emissiveIntensity: STANDIN.cloakEmissiveInt });
-  const cloakRim = addRim(cloakMat, { color: 0xd8d4cc, strength: STANDIN.rim, power: 3 });
+  const cloakRim = addRim(cloakMat, { color: 0xd8d4cc, strength: STANDIN.rim, power: 3, mask: 'aRimMask' }); // rim on cloak cloth only
   const recovery = { value: STANDIN.recoveryDefault };
   const emberMats = [];
   const emberMat = () => { const m = new THREE.MeshStandardMaterial({ color: 0x220a00, emissive: STANDIN.ember, emissiveIntensity: 2 }); emberMats.push(m); return m; };
@@ -88,7 +90,7 @@ export function createStandin() {
 
   // Neck juts forward from the stoop; head hangs.
   const head = new THREE.Group(); head.position.set(0, 0.62, -0.13); head.rotation.x = HEAD_PITCH; upper.add(head);
-  add(head, new THREE.SphereGeometry(0.11, 12, 10), new THREE.MeshStandardMaterial({ color: 0x0b0a0a, roughness: 1 }), 0, 0.12, 0.01); // face in shadow
+  add(head, new THREE.SphereGeometry(0.11, 12, 10), faceMat, 0, 0.12, 0.01); // face in shadow
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x7a2c10 }); // faint ember eyes
   for (const s of [-1, 1]) add(head, new THREE.SphereGeometry(0.009, 6, 4), eyeMat, s * 0.035, 0.14, -0.1);
   const hood = add(head, hoodGeometry(), cloakMat, 0, -0.05, 0.02);
@@ -108,19 +110,56 @@ export function createStandin() {
   }
   // Ember leak: faint additive bands where inner fire escapes the cloth (hood inner edge,
   // hem underside) so the fire reads from behind. Scaled by `recovery` in applyRecovery().
-  const leakMat = new THREE.MeshBasicMaterial({ color: STANDIN.ember, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true, toneMapped: true });
+  const leakMat = new THREE.MeshBasicMaterial({ color: STANDIN.ember, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true, toneMapped: true });
   const hoodLeak = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.018, 6, 28), leakMat);
   hoodLeak.rotation.x = Math.PI / 2; hoodLeak.position.set(0, -0.02, 0.02); hoodLeak.name = 'ember-leak-hood'; head.add(hoodLeak);
   const hemLeak = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.62, 40, 1), leakMat);
   hemLeak.rotation.x = -Math.PI / 2; hemLeak.position.set(0, 0.04, 0.06); hemLeak.name = 'ember-leak-hem'; rig.add(hemLeak);
   const glow = new THREE.PointLight(STANDIN.ember, 0.8, 2.2); glow.position.set(0, 0.42, -0.3); upper.add(glow);
 
+  // --- Static merge (draw calls): the posed hierarchy above is baked, relative to `rig`,
+  // into two meshes: `figure` (body + cloak + face, one lit material, vertex colours, rim
+  // masked to the cloak cloth) and `embers` (chest/palm embers, eyes, ember leaks: one
+  // unlit material whose strength follows `recovery`). The stoop pose is baked; whole-figure
+  // motion (bob, lean, dodge lunge) still animates through `rig`.
+  for (const a of arms) { a.sh.rotation.x = 0.15; a.el.rotation.x = -0.25; } // idle arm pose
+  rig.updateMatrixWorld(true);
+  const toRig = new THREE.Matrix4().copy(rig.matrixWorld).invert();
+  const lit = [], glowParts = [], drop = [];
+  const ember = new THREE.Color(STANDIN.ember);
+  rig.traverse((o) => {
+    if (!o.isMesh) return;
+    const g = o.geometry.clone(); g.deleteAttribute('uv');
+    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toRig, o.matrixWorld));
+    const n = g.attributes.position.count;
+    if (o.material === leakMat || o.material === eyeMat || emberMats.includes(o.material)) {
+      // rgb relative to the ember colour (x material strength), alpha = leak opacity
+      const [r, gg, b, a] = o.material === leakMat ? [1, 1, 1, 0.32] : o.material === eyeMat ? [0.25, 0.2, 0.25, 1] : [3, 3, 3, 1];
+      const c = new Float32Array(n * 4); for (let k = 0; k < n; k++) c.set([r, gg, b, a], k * 4);
+      g.setAttribute('color', new THREE.BufferAttribute(c, 4)); glowParts.push(g);
+    } else {
+      const isCloak = o.material === cloakMat;
+      if (!g.attributes.color) {
+        const col = new THREE.Color(isCloak ? 0x000000 : o.material.color.getHex()); // un-coloured cloak parts read black (as before)
+        const c = new Float32Array(n * 3); for (let k = 0; k < n; k++) c.set([col.r, col.g, col.b], k * 3);
+        g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+      }
+      g.setAttribute('aRimMask', new THREE.BufferAttribute(new Float32Array(n).fill(isCloak ? 1 : 0), 1));
+      lit.push(g);
+    }
+    drop.push(o);
+  });
+  for (const o of drop) { o.parent.remove(o); o.geometry.dispose(); }
+  const figure = new THREE.Mesh(mergeGeometries(lit), cloakMat); figure.name = 'standin-figure'; figure.castShadow = true;
+  const glowMat = new THREE.MeshBasicMaterial({ color: ember, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true });
+  const embers = new THREE.Mesh(mergeGeometries(glowParts), glowMat); embers.name = 'standin-embers'; embers.renderOrder = 1; // after the (transparent) figure
+  rig.add(figure, embers);
+
   let phase = 0, lean = 0, lunge = 0;
   function applyRecovery() {
     const k = 0.35 + 0.65 * Math.min(1, Math.max(0, recovery.value));
-    for (const m of emberMats) m.emissiveIntensity = 3 * k;
+    glowMat.color.copy(ember).multiplyScalar(k); // embers 3k, leaks 0.32 opacity x k (low: a hint of fire)
     glow.intensity = 1.2 * k;
-    leakMat.opacity = 0.32 * k; // low intensity: a hint of fire, not a lamp
   }
   applyRecovery();
 
@@ -141,14 +180,7 @@ export function createStandin() {
       rig.position.y = STANDIN.feetY + Math.abs(Math.sin(phase)) * 0.035 * s01 - lunge * 0.12;
       rig.rotation.x = -lean - lunge * 0.35;
       rig.position.z = -lunge * 0.15;
-      upper.rotation.x = BASE_STOOP - lunge * 0.25;
-      head.rotation.x = HEAD_PITCH - lunge * 0.3;
-      for (const a of arms) {
-        const swing = Math.sin(phase + (a.s > 0 ? 0 : Math.PI)) * 0.35 * s01;
-        a.sh.rotation.x = 0.15 + swing * (1 - lunge) + lunge * 1.1; // lunge: arms thrown back
-        a.el.rotation.x = -0.25 - lunge * 0.3;
-      }
-      cloak.scale.set(1, 1, 1 + 0.12 * (s01 + lunge)); hemLeak.scale.set(1, 1 + 0.12 * (s01 + lunge), 1);
+      figure.scale.set(1, 1, 1 + 0.06 * (s01 + lunge)); // cloak billow approximation (parts are baked)
     },
   };
 }
