@@ -23,7 +23,8 @@ import { measureReadability } from './render/readability.js';
 import { setBloomMips } from './render/bloom.js';
 import './style.css';
 
-await initRapier();
+await initRapier(); // Rapier chunk loads in parallel; #loading (index.html) covers download + wasm init
+document.getElementById('loading')?.remove();
 const scene = buildScene({ seed: 1337, dummy: true });
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
