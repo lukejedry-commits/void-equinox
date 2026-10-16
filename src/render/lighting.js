@@ -25,7 +25,7 @@ export const PROFILES = {
   act2: P({ name: 'Act 2 - dusk (Tenebrius)', key: 0x8a7aa8, keyInt: 0.9, sunDeg: 4, sky: 0x4a4060, ground: 0x1a1418, hemiInt: 0.35,
     fog: 0x3b3346, fogDensity: 0.03, saturation: 0.9, fire: 1, cloakRimMin: 0.35 }),
   act2_boss: P({ name: 'Act 2 - boss', key: 0x8a7aa8, keyInt: 0.9, sunDeg: 4, sky: 0x4a4060, ground: 0x1a1418, hemiInt: 0.35,
-    fog: 0x3b3346, fogDensity: 0.045, saturation: 0.9, fire: 1 }),
+    fog: 0x3b3346, fogDensity: 0.045, saturation: 0.9, fire: 1, cloakRimMin: 0.35 }),
   act3: P({ name: 'Act 3 - winter door', key: 0x9fb8d8, keyInt: 0.6, sunDeg: 10, sky: 0x2a3448, ground: 0x141820, hemiInt: 0.4,
     fog: 0x5a6678, fogDensity: 0.025, saturation: 0.85, winter: 1 }),
 };
