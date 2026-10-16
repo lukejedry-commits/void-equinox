@@ -102,7 +102,11 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
         const m = st.turnRate * dt; s.yaw += Math.max(-m, Math.min(m, d));
       }
     }
-    s.vel.y = s.grounded ? -1 : s.vel.y + T.gravity * dt; // TODO(Mechanics)
+    // Grounded: no downward push. Snap-to-ground keeps contact. A constant -1 m/s
+    // drove the capsule into the KCC contact-offset skin, and the next step's
+    // computeColliderMovement spent itself on depenetration and returned zero
+    // horizontal movement (that was the dodge step that did not move).
+    s.vel.y = s.grounded ? 0 : s.vel.y + T.gravity * dt; // TODO(Mechanics)
 
     const desired = { x: dx * dt, y: s.vel.y * dt, z: dz * dt };
     const m = move(desired);

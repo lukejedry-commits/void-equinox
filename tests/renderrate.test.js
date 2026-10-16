@@ -22,11 +22,12 @@ function dodgeAt(hz) {
   return { d, steps };
 }
 
-test('fixed-step dodge distance identical at 30/60/144 Hz render', async () => {
+test('fixed-step dodge distance 2.8 m (1%) and identical at 30/60/144 Hz render', async () => {
   await initRapier();
   const r = [30, 60, 144].map((hz) => ({ hz, ...dodgeAt(hz) }));
   for (const x of r) console.log(`# ${x.hz} Hz: dodge distance=${x.d} bits=${bits(x.d)} steps=${x.steps}`);
-  assert.ok(r[0].d > 0);
+  const expected = 14 * 12 / 60; // dodgeSpeed * dodgeSteps * FIXED_DT = 2.8 m
+  for (const x of r) assert.ok(Math.abs(x.d - expected) / expected < 0.01, `${x.hz} Hz: ${x.d} not within 1% of ${expected}`);
   assert.equal(bits(r[1].d), bits(r[0].d));
   assert.equal(bits(r[2].d), bits(r[0].d));
 });
