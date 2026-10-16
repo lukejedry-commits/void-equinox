@@ -12,6 +12,7 @@ import { createQuality, createLimiter } from './render/quality.js';
 import { createPerf } from './debug/perf.js';
 import { createTPSCamera } from './render/camera.js';
 import { addRim } from './render/rim.js';
+import { createStandin } from './render/standin.js';
 import './style.css';
 
 await initRapier();
@@ -42,17 +43,14 @@ const mats = {
   ground: new THREE.MeshStandardMaterial({ color: 0x6b3f22, roughness: 1 }),
   wall: new THREE.MeshStandardMaterial({ color: 0x8a8f99, roughness: 0.6 }),
   box: new THREE.MeshStandardMaterial({ color: 0xc8641e, roughness: 0.8 }),
-  player: new THREE.MeshStandardMaterial({ color: 0xe8d6b0, emissive: 0x331100 }),
 };
 for (const s of [...scene.statics.map((o) => ({ ...o, m: mats[o.kind] })), ...scene.boxes.map((o) => ({ ...o, m: mats.box }))]) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...s.size), s.m);
   mesh.castShadow = mesh.receiveShadow = true; three.add(mesh); sync.link(s.id, mesh);
 }
 const pm = new THREE.Group();
-const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.1, 6, 12), mats.player);
-body.castShadow = true; pm.add(body);
-const nose = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.3), mats.wall);
-nose.position.set(0, 0.4, -0.35); pm.add(nose);
+const standin = createStandin(); pm.add(standin.object); // visual only, follows synced capsule
+window.__standin = standin;
 three.add(pm); sync.link(scene.player.id, pm);
 
 // Lock-on dummy: static capsule; locked state shown as a faint cold-white fresnel rim.
@@ -63,9 +61,11 @@ dummyMesh.castShadow = dummyMesh.receiveShadow = true; three.add(dummyMesh); syn
 const tps = createTPSCamera({ camera, phys: scene.phys, targets: [{
   position: () => ({ x: scene.dummy.x, y: scene.dummy.y, z: scene.dummy.z }),
   onLock: (on) => { dummyRim.rimStrength.value = on ? 0.9 : 0; },
-}], onFade: (o) => window.__onCamFade?.(o) });
+}], onFade: (o) => standin.setFade(o) });
 tps.attach(renderer.domElement);
 window.__tps = tps;
+// ?shot: scripted framing for docs screenshots (render-side only).
+if (new URLSearchParams(location.search).has('shot')) { tps.setYaw(-0.5, 0.18); tps.toggleLock(); }
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(three, camera));
@@ -96,6 +96,7 @@ const perf = createPerf();
 const loop = createLoop({ step: (dt, tick) => stepScene(scene, input.sample(tick), dt) });
 const limiter = createLimiter();
 let lastT = null;
+const lastPos = new THREE.Vector3();
 
 function frame(tMs) {
   requestAnimationFrame(frame);
@@ -103,6 +104,9 @@ function frame(tMs) {
   const dt = lastT === null ? 0 : (tMs - lastT) / 1000; lastT = tMs;
   const alpha = loop.advance(dt);
   sync.apply(alpha); // the only place mesh transforms are written
+  const sp = dt > 0 ? Math.hypot(pm.position.x - lastPos.x, pm.position.z - lastPos.z) / dt : 0;
+  lastPos.copy(pm.position);
+  standin.update(dt, { speed: sp, dodging: scene.player.state.dodgeLeft > 0 });
   tps.update(dt, pm.position); // render-side only; sim sees yaw via recorded input.yawQ
   renderer.info.reset(); renderer.info.autoReset = false;
   preset.bloom ? composer.render() : renderer.render(three, camera);
