@@ -10,6 +10,7 @@ import { createLoop } from './core/loop.js';
 import { createInput } from './core/input.js';
 import { createQuality, createLimiter } from './render/quality.js';
 import { createPerf } from './debug/perf.js';
+import { createDrawCallProbe } from './debug/drawcalls.js';
 import { createTPSCamera } from './render/camera.js';
 import { addRim } from './render/rim.js';
 import { createStandin } from './render/standin.js';
@@ -50,6 +51,7 @@ const mats = { ground: new THREE.MeshStandardMaterial({ color: 0x808080, roughne
 const decay = addDecayToGround(mats.ground);
 // Batched: statics merged into one mesh, boxes instanced (see render/batch.js).
 const batches = buildBatches({ statics: scene.statics, boxes: scene.boxes, sync, phys: scene.phys, material: mats.ground });
+batches.staticMesh.userData.dc = 'main meshes: static merged (ground+wall)'; batches.inst.userData.dc = 'main meshes: boxes (instanced)';
 three.add(batches.staticMesh, batches.inst);
 const pm = new THREE.Group();
 const standin = createStandin(); pm.add(standin.object); // visual only, follows synced capsule
@@ -61,7 +63,7 @@ const dummyMat = new THREE.MeshStandardMaterial({ color: 0x5a5550, roughness: 0.
 const dummyRim = addRim(dummyMat, { color: 0xa8c8ff, strength: 0, power: 2.5 });
 const tell = createTell(dummyMat); window.__tell = tell;
 const dummyMesh = new THREE.Mesh(new THREE.CapsuleGeometry(scene.dummy.radius, scene.dummy.halfHeight * 2, 6, 12), dummyMat);
-dummyMesh.castShadow = dummyMesh.receiveShadow = true; three.add(dummyMesh); sync.link(scene.dummy.id, dummyMesh);
+dummyMesh.userData.dc = 'main meshes: lock-on dummy'; dummyMesh.castShadow = dummyMesh.receiveShadow = true; three.add(dummyMesh); sync.link(scene.dummy.id, dummyMesh);
 const tps = createTPSCamera({ camera, phys: scene.phys, targets: [{
   position: () => ({ x: scene.dummy.x, y: scene.dummy.y, z: scene.dummy.z }),
   onLock: (on) => { dummyRim.rimStrength.value = on ? 0.9 : 0; },
@@ -88,9 +90,11 @@ addEventListener('keydown', (e) => {
 window.__lighting = lighting;
 
 const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(three, camera));
+const renderPass = new RenderPass(three, camera), outputPass = new OutputPass();
+composer.addPass(renderPass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.4, 0.85);
-composer.addPass(bloom); composer.addPass(new OutputPass()); composer.addPass(lighting.grade);
+composer.addPass(bloom); composer.addPass(outputPass); composer.addPass(lighting.grade);
+const drawProbe = createDrawCallProbe({ renderer, composer, passNames: new Map([[renderPass, 'main'], [bloom, 'bloom'], [outputPass, 'post: output (tone map)'], [lighting.grade, 'post: colour grade']]) });
 lighting.patchScene();
 
 function resize() {
@@ -148,5 +152,6 @@ function renderFrame() {
 }
 // Readability check (headless): see render/readability.js and scripts/readability-check.mjs.
 window.__readability = (opts) => measureReadability({ renderer, standin, tellGain, bloom, scene: three, camera, lighting, tell, props, decay, renderFrame, ...opts });
+window.__drawBreakdown = () => drawProbe.capture(renderFrame);
 requestAnimationFrame(frame);
 window.__ready = true;

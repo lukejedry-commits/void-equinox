@@ -77,18 +77,18 @@ export function createProps({ scene, preset }) {
   const fire = new THREE.PointLight(FIRE.color, FIRE.intensity, FIRE.distance, FIRE.decay);
   fire.position.set(...LAYOUT.fire); fire.name = 'fire-light'; root.add(fire);
   const coalMat = new THREE.MeshStandardMaterial({ color: 0x1a0d06, emissive: EMBER, emissiveIntensity: 0 });
-  const coal = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.3, 8), coalMat); coal.position.set(LAYOUT.fire[0], 0.15, LAYOUT.fire[2]); root.add(coal);
+  const coal = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.3, 8), coalMat); coal.position.set(LAYOUT.fire[0], 0.15, LAYOUT.fire[2]); coal.userData.dc = 'props act2: brazier'; root.add(coal);
   // Puzzle landmarks: emissive only within the fire light's distance.
   const landmarks = LAYOUT.landmarks.map(([x, z]) => {
     const m = new THREE.MeshStandardMaterial({ color: 0x3c3c3c, roughness: 0.9, emissive: assertPuzzleEmissive(PUZZLE_EMISSIVE), emissiveIntensity: 0 });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 0.35), m); mesh.position.set(x, 0.55, z); mesh.castShadow = mesh.receiveShadow = true; root.add(mesh);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 0.35), m); mesh.position.set(x, 0.55, z); mesh.userData.dc = 'props act2: puzzle landmarks'; mesh.castShadow = mesh.receiveShadow = true; root.add(mesh);
     const inRange = Math.hypot(x - LAYOUT.fire[0], z - LAYOUT.fire[2]) <= FIRE.distance;
     return { mesh, m, inRange };
   });
 
   // Act 3 winter door + frost leaf mound.
   const doorMat = new THREE.MeshStandardMaterial({ color: 0x6e7076, roughness: 0.9 });
-  const door = new THREE.Group(); door.position.set(LAYOUT.door[0], 0, LAYOUT.door[1]); root.add(door);
+  const door = new THREE.Group(); door.position.set(LAYOUT.door[0], 0, LAYOUT.door[1]); door.userData.dc = 'props act3: winter door'; root.add(door);
   for (const [w, h, x, y] of [[0.4, 3.2, -1.1, 1.6], [0.4, 3.2, 1.1, 1.6], [2.6, 0.4, 0, 3.3]]) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.4), doorMat); b.position.set(x, y, 0); b.castShadow = b.receiveShadow = true; door.add(b);
   }
@@ -104,13 +104,13 @@ export function createProps({ scene, preset }) {
     e.set(-Math.PI / 2 + (hash(i + 5) - 0.5) * 0.9, hash(i + 9) * 6, 0); q.setFromEuler(e);
     mm.compose(new THREE.Vector3(Math.cos(a) * r, 0.02 + (0.8 - r) * 0.18 * hash(i + 2), Math.sin(a) * r), q, new THREE.Vector3(1, 1, 1)); mound.setMatrixAt(i, mm);
   }
-  mound.position.set(LAYOUT.door[0], 0, LAYOUT.door[1] + 0.6); mound.receiveShadow = true; root.add(mound);
+  mound.position.set(LAYOUT.door[0], 0, LAYOUT.door[1] + 0.6); mound.receiveShadow = true; mound.userData.dc = 'props act3: frost mound'; root.add(mound);
 
   // Meridius motes (additive, rising) and -ius smoke (alpha, sinking).
   const motes = points(cap(160), MOTE_COLOR, { size: 0.07, additive: true, opacity: 0.0, seed: 3, spread: 3, h: 3 });
-  motes.position.set(LAYOUT.motes[0], 0, LAYOUT.motes[1]); root.add(motes);
+  motes.position.set(LAYOUT.motes[0], 0, LAYOUT.motes[1]); motes.userData.dc = 'particles: Meridius motes'; root.add(motes);
   const smoke = points(cap(120), SMOKE_COLOR, { size: 0.6, additive: false, opacity: 0.0, seed: 7, spread: 3, h: 2.5 });
-  smoke.position.set(LAYOUT.smoke[0], 0, LAYOUT.smoke[1]); root.add(smoke);
+  smoke.position.set(LAYOUT.smoke[0], 0, LAYOUT.smoke[1]); smoke.userData.dc = 'particles: -ius smoke'; root.add(smoke);
 
   const doorW = new THREE.Vector3(LAYOUT.door[0], 1, LAYOUT.door[1]);
   let time = 0;
