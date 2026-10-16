@@ -1,4 +1,5 @@
 import { yawFromQ } from '../core/input.js';
+import { MOVEMENT, GAIT } from '../config/feel.js';
 // Kinematic capsule driven by Rapier KinematicCharacterController.
 // All motion goes through computeColliderMovement -> setNextKinematicTranslation.
 
@@ -8,7 +9,8 @@ export const PLAYER_TUNING = {
   slopeLimitDeg: 45,                    // TODO(Mechanics)
   autostepHeight: 0.3, autostepMinWidth: 0.2, // TODO(Mechanics)
   snapDistance: 0.3,                    // TODO(Mechanics)
-  baseTopSpeed: 6, baseAccel: 40, baseTurnRate: 14, // TODO(Mechanics)
+  baseTurnRate: 14,                     // TODO(Mechanics)
+  movement: MOVEMENT,                   // walk/run/sprint, accel/decel: src/config/feel.js
   dodgeSpeed: 14, dodgeSteps: 12, dodgeCooldownSteps: 30, // TODO(Mechanics)
   gravity: -20,                         // TODO(Mechanics)
   knockbackDamping: 6,                  // 1/s exponential decay of external velocity. TODO(Mechanics)
@@ -23,12 +25,15 @@ function clampH(v, max = MAX_H_SPEED) {
   return v;
 }
 
-// heaviness 0 (light) .. 1 (heavy) scales accel/turn/top speed together.
-export function derivedStats(heaviness, T = PLAYER_TUNING) {
-  const h = Math.min(1, Math.max(0, heaviness));
+// Gait top speed (m/s) from the recorded input gait; accel/decel rates (m/s^2) derived
+// from the time-to-full-speed / time-to-stop in feel.js. heaviness only scales turn rate.
+export function derivedStats(heaviness, T = PLAYER_TUNING, gait = GAIT.run) {
+  const h = Math.min(1, Math.max(0, heaviness)), M = T.movement;
+  const topSpeed = gait === GAIT.walk ? M.walk : gait === GAIT.sprint ? M.sprint : M.run;
   return {
-    topSpeed: T.baseTopSpeed * (1.2 - 0.5 * h),  // TODO(Mechanics)
-    accel: T.baseAccel * (1.3 - 0.8 * h),        // TODO(Mechanics)
+    topSpeed,
+    accel: topSpeed / M.accelSec,
+    decel: topSpeed / M.decelSec,
     turnRate: T.baseTurnRate * (1.3 - 0.9 * h),  // TODO(Mechanics)
   };
 }
@@ -149,7 +154,8 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
 
   // Called once per fixed step, before phys.step().
   function update(input, dt) {
-    const st = derivedStats(s.heaviness, T);
+    const st = derivedStats(s.heaviness, T, input.gait ?? GAIT.run);
+    s.gait = input.gait ?? GAIT.run;
     let ix = input.mx, iz = input.mz;
     const len = Math.hypot(ix, iz);
     if (len > 1) { ix /= len; iz /= len; }
@@ -173,7 +179,9 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
       s.vel.x = dx; s.vel.z = dz;
     } else {
       const tx = ix * st.topSpeed, tz = iz * st.topSpeed;
-      const maxDv = st.accel * dt;
+      // accelerate toward a faster target, decelerate (faster rate) toward a slower one
+      const slowing = Math.hypot(tx, tz) < Math.hypot(s.vel.x, s.vel.z);
+      const maxDv = (slowing ? st.decel : st.accel) * dt;
       const ex = tx - s.vel.x, ez = tz - s.vel.z, el = Math.hypot(ex, ez);
       const k = el > maxDv ? maxDv / el : 1;
       s.vel.x += ex * k; s.vel.z += ez * k;
