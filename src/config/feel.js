@@ -30,4 +30,7 @@ export const STAMINA = {
   exhaustedRegenScale: 0.5,           // ... then half-rate regen until full
 };
 
-export const FEEL = { MOVEMENT, DODGE, STAMINA };
+// Intro tutorial: until the first stand is reached, speeds x0.5 and no dodge.
+export const TUTORIAL = { speedScale: 0.5, dodgeEnabled: false };
+
+export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL };

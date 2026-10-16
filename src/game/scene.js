@@ -8,7 +8,7 @@ export const WALL = { x: 4, halfThickness: 0.05, halfHeight: 1.5, halfDepth: 4 }
 // Lock-on dummy target (static capsule). Opt-in so existing test scenes are unchanged.
 export const DUMMY = { x: 2.4, z: -3.2, radius: 0.35, halfHeight: 0.55 }; // TODO(Mechanics)
 
-export function buildScene({ seed = 1, player = {}, boxes: withBoxes = true, dummy: withDummy = false } = {}) {
+export function buildScene({ seed = 1, player = {}, boxes: withBoxes = true, dummy: withDummy = false, tutorial = false } = {}) {
   const phys = createPhysicsWorld();
   const { RAPIER } = phys;
   const rng = mulberry32(seed);
@@ -26,7 +26,7 @@ export function buildScene({ seed = 1, player = {}, boxes: withBoxes = true, dum
       RAPIER.ColliderDesc.cuboid(s, s, s).setDensity(1), 'box');
     boxes.push({ id, size: [s * 2, s * 2, s * 2] });
   }
-  const p = createPlayer(phys, { x: 0, y: 1.0, z: 0, ...player });
+  const p = createPlayer(phys, { x: 0, y: 1.0, z: 0, tutorial, ...player });
   let dummy = null;
   if (withDummy) {
     const y = DUMMY.halfHeight + DUMMY.radius;

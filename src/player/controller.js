@@ -1,5 +1,5 @@
 import { yawFromQ } from '../core/input.js';
-import { MOVEMENT, GAIT, DODGE, steps } from '../config/feel.js';
+import { MOVEMENT, GAIT, DODGE, TUTORIAL, steps } from '../config/feel.js';
 import { createStamina } from '../sim/stamina.js';
 // Kinematic capsule driven by Rapier KinematicCharacterController.
 // All motion goes through computeColliderMovement -> setNextKinematicTranslation.
@@ -43,7 +43,7 @@ export function derivedStats(heaviness, T = PLAYER_TUNING, gait = GAIT.run) {
   };
 }
 
-export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tuning = PLAYER_TUNING } = {}) {
+export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tuning = PLAYER_TUNING, tutorial = false } = {}) {
   const { RAPIER, world } = phys;
   const T = tuning;
   const id = phys.add(
@@ -180,7 +180,8 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   const stamina = createStamina();
   s.stamina = stamina.state;
   s.actions = { light: 0, heavy: 0, fire: 0, refused: 0 };
-  const canDodge = () => stamina.dodge();
+  s.tutorial = !!tutorial; // intro flag: cleared (sim-side) at the first stand
+  const canDodge = () => (!s.tutorial || TUTORIAL.dodgeEnabled) && stamina.dodge();
   function attacks(input) {
     const tryDo = (k, ok) => { if (ok) s.actions[k]++; else s.actions.refused++; };
     if (input.light) tryDo('light', stamina.light());
@@ -196,6 +197,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     if (!stamina.step({ fireLit: !!env.fireLit, sprinting: gait === GAIT.sprint && moving }) && gait === GAIT.sprint && moving) gait = GAIT.run;
     attacks(input);
     const st = derivedStats(s.heaviness, T, gait);
+    if (s.tutorial) st.topSpeed *= TUTORIAL.speedScale;
     s.gait = gait;
     let ix = input.mx, iz = input.mz;
     const len = Math.hypot(ix, iz);
@@ -272,5 +274,5 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   // Test hook: arbitrary desired translation, still routed through the KCC.
   function pushRaw(desired) { return move(desired); }
 
-  return { id, state: s, stamina, update, pushRaw, applyKnockback, MAX_H_SPEED, subSteps: (d) => nSub(clampDesired(d)), moveStats: stats, MAX_SUBSTEPS, maxSub, position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
+  return { id, state: s, stamina, update, reachFirstStand() { s.tutorial = false; }, pushRaw, applyKnockback, MAX_H_SPEED, subSteps: (d) => nSub(clampDesired(d)), moveStats: stats, MAX_SUBSTEPS, maxSub, position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
 }

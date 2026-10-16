@@ -25,7 +25,7 @@ import './style.css';
 
 await initRapier(); // Rapier chunk loads in parallel; #loading (index.html) covers download + wasm init
 document.getElementById('loading')?.remove();
-const scene = buildScene({ seed: 1337, dummy: true });
+const scene = buildScene({ seed: 1337, dummy: true, tutorial: new URLSearchParams(location.search).get('tutorial') === '1' }); // ?tutorial=1: intro flag
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.shadowMap.enabled = true;
