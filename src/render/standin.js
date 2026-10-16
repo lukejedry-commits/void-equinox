@@ -11,7 +11,8 @@ export const STANDIN = {
   cloakTop: 0x5a5652,   // ash grey, desaturated (reads grey under every LightingProfile)
   cloakHem: 0x262422,   // charcoal
   body: 0x8a8a8a,       // mannequin grey
-  rim: 0.15,
+  rim: 0.15,            // default cloak rim floor; per-profile cloakRimMin overrides (lighting.js)
+  cloakEmissive: 0x1a1816, cloakEmissiveInt: 0.05, // emissive floor so the cloak never crushes to black
   recoveryDefault: 0.15, // fixed dim on the slice
   feetY: -0.9,
 };
@@ -62,8 +63,9 @@ export function createStandin() {
   const root = new THREE.Group(); root.name = 'solenius-standin';
   const rig = new THREE.Group(); rig.position.y = STANDIN.feetY; root.add(rig); // feet at capsule bottom
   const bodyMat = new THREE.MeshStandardMaterial({ color: STANDIN.body, roughness: 0.8 });
-  const cloakMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.95, side: THREE.DoubleSide, transparent: true });
-  addRim(cloakMat, { color: 0xd8d4cc, strength: STANDIN.rim, power: 3 });
+  const cloakMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.95, side: THREE.DoubleSide, transparent: true,
+    emissive: STANDIN.cloakEmissive, emissiveIntensity: STANDIN.cloakEmissiveInt });
+  const cloakRim = addRim(cloakMat, { color: 0xd8d4cc, strength: STANDIN.rim, power: 3 });
   const recovery = { value: STANDIN.recoveryDefault };
   const emberMats = [];
   const emberMat = () => { const m = new THREE.MeshStandardMaterial({ color: 0x220a00, emissive: STANDIN.ember, emissiveIntensity: 2 }); emberMats.push(m); return m; };
@@ -126,6 +128,9 @@ export function createStandin() {
     object: root, recovery,
     get recoveryValue() { return recovery.value; },
     setRecovery(v) { recovery.value = v; applyRecovery(); },
+    // Per-profile fresnel rim floor on the cloak (LightingProfile.cloakRimMin).
+    setCloakRimMin(v) { cloakRim.rimStrength.value = Math.max(0, v); },
+    get cloakRimMin() { return cloakRim.rimStrength.value; },
     setFade(opacity) { cloakMat.opacity = opacity; cloakMat.depthWrite = opacity >= 1; },
     // speed: horizontal m/s from interpolated positions; dodging: sim dodge active (read-only).
     update(dt, { speed = 0, dodging = false } = {}) {

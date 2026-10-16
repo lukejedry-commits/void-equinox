@@ -133,7 +133,7 @@ function frame(tMs) {
   tps.update(dt, pm.position); // render-side only; sim sees yaw via recorded input.yawQ
   clock += dt;
   zones.update(pm.position); lighting.update(dt);
-  const w = lighting.weights(); decay.uDecayOn.value = w.decay; props.update(dt, w); tell.update(clock, tellGain());
+  const w = lighting.weights(); decay.uDecayOn.value = w.decay; props.update(dt, w); standin.setCloakRimMin(w.cloakRimMin); tell.update(clock, tellGain());
   renderFrame();
   window.__drawCalls = renderer.info.render.calls;
   quality.frame(dt);
@@ -147,6 +147,6 @@ function renderFrame() {
   composer.render(); // grading pass always runs; bloom pass toggled per preset
 }
 // Readability check (headless): see render/readability.js and scripts/readability-check.mjs.
-window.__readability = (opts) => measureReadability({ renderer, tellGain, bloom, scene: three, camera, lighting, tell, props, decay, renderFrame, ...opts });
+window.__readability = (opts) => measureReadability({ renderer, standin, tellGain, bloom, scene: three, camera, lighting, tell, props, decay, renderFrame, ...opts });
 requestAnimationFrame(frame);
 window.__ready = true;

@@ -10,22 +10,23 @@ export const PRESENCE = { rampIn: 1.5, release: 3, exposure: 1.6, saturation: 0.
 export const HEIGHT_FOG_K = 0.15;           // density * exp(-height * 0.15)
 export const FIRE = { color: 0xff8a3a, intensity: 3, distance: 4, decay: 2, fogScale: 0.3 };
 
+// cloakRimMin: floor of the stand-in cloak fresnel rim (0.35 in Act 2 dusk, 0.15 elsewhere).
 // sunDeg: elevation; weights act1/act2/act3 drive act-specific props (decal, fire, winter).
-const P = (o) => ({ exposure: 1, sunAzDeg: -35, lift: [0, 0, 0], decay: 0, fire: 0, winter: 0, ...o });
+const P = (o) => ({ exposure: 1, sunAzDeg: -35, lift: [0, 0, 0], decay: 0, fire: 0, winter: 0, cloakRimMin: 0.15, ...o });
 export const PROFILES = {
   act1: P({ name: 'Act 1 - warm decline (Marcescius)', key: 0xffb070, keyInt: 2.2, sunDeg: 18, sky: 0xf2c58a, ground: 0x3a2414, hemiInt: 0.6,
     fog: 0xc9925a, fogDensity: 0.012, saturation: 1.1, lift: [0.045, 0.025, 0.008], decay: 1 }),
   act1_arena: P({ name: 'Act 1 - arena', key: 0xd9a77a, keyInt: 2.2, sunDeg: 18, sky: 0xf2c58a, ground: 0x3a2414, hemiInt: 0.6,
     fog: 0xc9925a, fogDensity: 0.018, saturation: 0.6, lift: [0.045, 0.025, 0.008], decay: 1 }),
   act2: P({ name: 'Act 2 - dusk (Tenebrius)', key: 0x8a7aa8, keyInt: 0.9, sunDeg: 4, sky: 0x4a4060, ground: 0x1a1418, hemiInt: 0.35,
-    fog: 0x3b3346, fogDensity: 0.03, saturation: 0.9, fire: 1 }),
+    fog: 0x3b3346, fogDensity: 0.03, saturation: 0.9, fire: 1, cloakRimMin: 0.35 }),
   act2_boss: P({ name: 'Act 2 - boss', key: 0x8a7aa8, keyInt: 0.9, sunDeg: 4, sky: 0x4a4060, ground: 0x1a1418, hemiInt: 0.35,
     fog: 0x3b3346, fogDensity: 0.045, saturation: 0.9, fire: 1 }),
   act3: P({ name: 'Act 3 - winter door', key: 0x9fb8d8, keyInt: 0.6, sunDeg: 10, sky: 0x2a3448, ground: 0x141820, hemiInt: 0.4,
     fog: 0x5a6678, fogDensity: 0.025, saturation: 0.85, winter: 1 }),
 };
 const COLORS = ['key', 'sky', 'ground', 'fog'];
-const NUMS = ['keyInt', 'sunDeg', 'sunAzDeg', 'hemiInt', 'fogDensity', 'saturation', 'exposure', 'decay', 'fire', 'winter'];
+const NUMS = ['keyInt', 'sunDeg', 'sunAzDeg', 'hemiInt', 'fogDensity', 'saturation', 'exposure', 'decay', 'fire', 'winter', 'cloakRimMin'];
 
 function resolve(p) { // profile -> live state with THREE.Color (linear)
   const s = {}; for (const k of NUMS) s[k] = p[k]; for (const k of COLORS) s[k] = new THREE.Color(p[k]);
@@ -162,7 +163,7 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
   return {
     uniforms, grade, presence, patchMaterial, patchScene, setProfile, setPresence, update,
     get profile() { return current; }, get blend() { return t; }, get state() { return out; },
-    weights: () => ({ decay: out.decay, fire: out.fire, winter: out.winter, presence: presence.value }),
+    weights: () => ({ cloakRimMin: out.cloakRimMin, decay: out.decay, fire: out.fire, winter: out.winter, presence: presence.value }),
   };
 }
 

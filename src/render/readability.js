@@ -27,12 +27,12 @@ function sampleAt(buf, camera, p, r = 3) {
   return n ? s / n : null;
 }
 
-export function measureReadability({ tellGain = () => 1, bloom = null, renderer, scene, camera, lighting, tell, props, decay, renderFrame, profiles = ['act1', 'act1_arena', 'act2', 'act2_boss', 'act3'], presence = [], unblockable = false }) {
+export function measureReadability({ standin = null, tellGain = () => 1, bloom = null, renderer, scene, camera, lighting, tell, props, decay, renderFrame, profiles = ['act1', 'act1_arena', 'act2', 'act2_boss', 'act3'], presence = [], unblockable = false }) {
   const gl = renderer.getContext();
   const runs = [...profiles.map((p) => ({ p, pres: false })), ...presence.map((p) => ({ p, pres: true }))];
   const prev = { profile: lighting.profile, pres: lighting.presence.on, presV: lighting.presence.value };
   const out = [];
-  const settle = () => { lighting.update(0); const w = lighting.weights(); decay.uDecayOn.value = w.decay; props.update(0, w); };
+  const settle = () => { lighting.update(0); const w = lighting.weights(); decay.uDecayOn.value = w.decay; props.update(0, w); standin?.setCloakRimMin(w.cloakRimMin); };
   for (const { p, pres } of runs) {
     lighting.setProfile(p, 0); lighting.setPresence(pres, true); settle();
     tell.hold(false); tell.update(0, tellGain()); renderFrame(); const off = lumBuffer(gl);
