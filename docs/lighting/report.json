@@ -4,11 +4,11 @@
     "profile": "act1",
     "quality": "low",
     "presence": false,
-    "drawCalls": 62,
-    "meanLum": 0.194,
+    "drawCalls": 63,
+    "meanLum": 0.202,
     "tellLum": 0.769,
-    "ratio": 3.967,
-    "decayEdgeContrast": 0.644,
+    "ratio": 3.801,
+    "decayEdgeContrast": 0.622,
     "fireRadiusRatio": 0.375
   },
   {
@@ -16,11 +16,11 @@
     "profile": "act1",
     "quality": "high",
     "presence": false,
-    "drawCalls": 75,
-    "meanLum": 0.194,
+    "drawCalls": 76,
+    "meanLum": 0.202,
     "tellLum": 0.921,
-    "ratio": 4.751,
-    "decayEdgeContrast": 0.641,
+    "ratio": 4.552,
+    "decayEdgeContrast": 0.628,
     "fireRadiusRatio": 0.382
   },
   {
@@ -28,11 +28,11 @@
     "profile": "act1_arena",
     "quality": "high",
     "presence": false,
-    "drawCalls": 75,
-    "meanLum": 0.187,
+    "drawCalls": 76,
+    "meanLum": 0.196,
     "tellLum": 0.915,
-    "ratio": 4.884,
-    "decayEdgeContrast": 0.591,
+    "ratio": 4.666,
+    "decayEdgeContrast": 0.562,
     "fireRadiusRatio": 0.466
   },
   {
@@ -43,8 +43,8 @@
     "drawCalls": 63,
     "meanLum": 0.014,
     "tellLum": 0.753,
-    "ratio": 54.259,
-    "decayEdgeContrast": 1.083,
+    "ratio": 53.215,
+    "decayEdgeContrast": 0.972,
     "fireRadiusRatio": 8.001
   },
   {
@@ -55,9 +55,21 @@
     "drawCalls": 76,
     "meanLum": 0.014,
     "tellLum": 0.897,
-    "ratio": 63.19,
-    "decayEdgeContrast": 1.011,
+    "ratio": 62,
+    "decayEdgeContrast": 1.413,
     "fireRadiusRatio": 9.176
+  },
+  {
+    "shot": "docs/lighting/act2_presence_low.png",
+    "profile": "act2",
+    "quality": "low",
+    "presence": true,
+    "drawCalls": 63,
+    "meanLum": 0.369,
+    "tellLum": 0.932,
+    "ratio": 2.525,
+    "decayEdgeContrast": 0.424,
+    "fireRadiusRatio": 1.07
   },
   {
     "shot": "docs/lighting/act2_presence_high.png",
@@ -65,22 +77,22 @@
     "quality": "high",
     "presence": true,
     "drawCalls": 76,
-    "meanLum": 0.362,
+    "meanLum": 0.37,
     "tellLum": 0.964,
-    "ratio": 2.659,
-    "decayEdgeContrast": 0.518,
-    "fireRadiusRatio": 1.121
+    "ratio": 2.604,
+    "decayEdgeContrast": 0.424,
+    "fireRadiusRatio": 1.094
   },
   {
     "shot": "docs/lighting/act3_low.png",
     "profile": "act3",
     "quality": "low",
     "presence": false,
-    "drawCalls": 70,
+    "drawCalls": 69,
     "meanLum": 0.059,
     "tellLum": 0.755,
-    "ratio": 12.881,
-    "decayEdgeContrast": 0.951,
+    "ratio": 12.885,
+    "decayEdgeContrast": 0.551,
     "fireRadiusRatio": 0.22
   },
   {
@@ -88,11 +100,11 @@
     "profile": "act3",
     "quality": "high",
     "presence": false,
-    "drawCalls": 83,
+    "drawCalls": 82,
     "meanLum": 0.059,
     "tellLum": 0.897,
-    "ratio": 15.293,
-    "decayEdgeContrast": 0.951,
+    "ratio": 15.3,
+    "decayEdgeContrast": 0.551,
     "fireRadiusRatio": 0.245
   },
   {
@@ -100,10 +112,10 @@
     "profile": "act1",
     "quality": "high",
     "presence": false,
-    "drawCalls": 76,
-    "meanLum": 0.189,
+    "drawCalls": 77,
+    "meanLum": 0.207,
     "tellLum": 0.928,
-    "ratio": 4.896,
+    "ratio": 4.476,
     "decayEdgeContrast": 0.794,
     "fireRadiusRatio": null
   }
