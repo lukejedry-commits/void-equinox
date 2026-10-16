@@ -86,15 +86,14 @@ export function createProps({ scene, preset }) {
     return { mesh, m, inRange };
   });
 
-  // Act 3 winter door + leaves.
+  // Act 3 winter door + frost leaf mound.
   const doorMat = new THREE.MeshStandardMaterial({ color: 0x6e7076, roughness: 0.9 });
   const door = new THREE.Group(); door.position.set(LAYOUT.door[0], 0, LAYOUT.door[1]); root.add(door);
   for (const [w, h, x, y] of [[0.4, 3.2, -1.1, 1.6], [0.4, 3.2, 1.1, 1.6], [2.6, 0.4, 0, 3.3]]) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.4), doorMat); b.position.set(x, y, 0); b.castShadow = b.receiveShadow = true; door.add(b);
   }
-  const nLeaves = cap(240);
-  const leaves = points(nLeaves, 0x8a5a2a, { size: 0.09, additive: false, opacity: 0.9, seed: 11, spread: 14, h: 4 });
-  leaves.position.set(LAYOUT.door[0], 0, LAYOUT.door[1] + 4); root.add(leaves);
+  // (Act 3 ambient drifting ember/leaf motes removed per Graphics review; the stand-in's own
+  // embers and the frost mound stay.)
   // Leaf mound at the door: zero wind, white fresnel frost rim 0.4.
   const moundMat = new THREE.MeshStandardMaterial({ color: 0x6a4424, roughness: 1, side: THREE.DoubleSide });
   const frost = addRim(moundMat, { color: 0xffffff, strength: 0, power: 2, id: 'Frost' });
@@ -128,17 +127,15 @@ export function createProps({ scene, preset }) {
     a.needsUpdate = true;
   }
   return {
-    root, fire, landmarks, leaves, mound, motes, smoke, frost,
+    root, fire, landmarks, mound, motes, smoke, frost,
     // windAt: leaf wind factor (1 far away -> 0 near the door).
     windAt(x, z) { const d = Math.hypot(x - doorW.x, z - doorW.z); return THREE.MathUtils.smoothstep(d, 1.5, 6); },
     update(dt, w) {
       time += dt;
       coalMat.emissiveIntensity = 2.5 * w.fire; coal.visible = w.fire > 0.01;
       for (const l of landmarks) l.m.emissiveIntensity = l.inRange ? 0.9 * w.fire : 0;
-      door.visible = mound.visible = leaves.visible = w.winter > 0.01;
-      leaves.material.opacity = 0.9 * w.winter;
+      door.visible = mound.visible = w.winter > 0.01;
       frost.rimStrength.value = 0.4 * w.winter;
-      if (leaves.visible) drift(leaves, { v: 0, dt }, 4, (x, z) => this.windAt(x, z) * 1.2);
       motes.material.opacity = 0.15 + 0.75 * w.presence; drift(motes, { v: 0.35, dt }, 3);
       smoke.material.opacity = 0.35 * w.fire; drift(smoke, { v: -0.25, dt }, 2.5);
     },
