@@ -40,9 +40,10 @@ ember.position.set(2, 2, -2); three.add(ember);
 
 const sync = createSync(scene.phys);
 const mats = {
-  ground: new THREE.MeshStandardMaterial({ color: 0x6b3f22, roughness: 1 }),
-  wall: new THREE.MeshStandardMaterial({ color: 0x8a8f99, roughness: 0.6 }),
-  box: new THREE.MeshStandardMaterial({ color: 0xc8641e, roughness: 0.8 }),
+  // Neutral mid-grey test geometry so lighting profiles (not albedo) carry the colour.
+  ground: new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 1 }),
+  wall: new THREE.MeshStandardMaterial({ color: 0x7a7a7a, roughness: 0.8 }),
+  box: new THREE.MeshStandardMaterial({ color: 0x858585, roughness: 0.85 }),
 };
 for (const s of [...scene.statics.map((o) => ({ ...o, m: mats[o.kind] })), ...scene.boxes.map((o) => ({ ...o, m: mats.box }))]) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...s.size), s.m);
