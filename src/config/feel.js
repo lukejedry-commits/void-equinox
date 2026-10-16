@@ -33,4 +33,12 @@ export const STAMINA = {
 // Intro tutorial: until the first stand is reached, speeds x0.5 and no dodge.
 export const TUTORIAL = { speedScale: 0.5, dodgeEnabled: false };
 
-export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL };
+export const KNOCKBACK = {
+  gameplayMax: 9,                     // m/s: cap for every gameplay hit
+  hardClamp: 84,                      // m/s: safety clamp (= per-step displacement cap 1.4 m / (1/60 s)); never lowered
+  light: 2.5, heavy: 5, bossSlam: 8,  // m/s per hit kind
+  damping: 6,                         // 1/s
+  staggerMaxSec: 0.4,                 // input lock after a hit, at most
+};
+
+export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL, KNOCKBACK };

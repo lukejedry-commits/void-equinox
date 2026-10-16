@@ -1,5 +1,5 @@
 import { yawFromQ } from '../core/input.js';
-import { MOVEMENT, GAIT, DODGE, TUTORIAL, steps } from '../config/feel.js';
+import { MOVEMENT, GAIT, DODGE, TUTORIAL, KNOCKBACK, steps } from '../config/feel.js';
 import { createStamina } from '../sim/stamina.js';
 // Kinematic capsule driven by Rapier KinematicCharacterController.
 // All motion goes through computeColliderMovement -> setNextKinematicTranslation.
@@ -18,12 +18,13 @@ export const PLAYER_TUNING = {
   dodgeIframeSteps: [steps(DODGE.iframeStartSec), steps(DODGE.iframeEndSec)], // [5, 23) elapsed steps
   dodgeRecoverySteps: steps(DODGE.recoverySec),           // 9
   gravity: -20,                         // TODO(Mechanics)
-  knockbackDamping: 6,                  // 1/s exponential decay of external velocity. TODO(Mechanics)
+  knockbackDamping: KNOCKBACK.damping,  // 1/s exponential decay of external velocity (feel.js)
 };
 
 // Max horizontal speed any velocity state may hold: the per-step displacement cap
 // (MAX_SUBSTEPS * 0.5 * radius = 1.4 m) over one fixed step (1/60 s) = 84 m/s.
 export const MAX_H_SPEED = 1.4 / (1 / 60);
+if (MAX_H_SPEED !== KNOCKBACK.hardClamp) throw new Error('feel.js KNOCKBACK.hardClamp must equal the 84 m/s displacement cap');
 function clampH(v, max = MAX_H_SPEED) {
   const h = Math.hypot(v.x, v.z);
   if (h > max) { const k = max / h; v.x *= k; v.z *= k; }
@@ -169,11 +170,27 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     ext: { x: 0, z: 0 }, // knockback / external push velocity (m/s), |ext| <= MAX_H_SPEED
   };
 
-  // Knockback: added to the stored external velocity, clamped AT STORE TIME so no
-  // excess persists into later steps.
+  // Knockback (gameplay): added to the stored external velocity and clamped AT STORE TIME
+  // to KNOCKBACK.gameplayMax (9 m/s), so no excess persists into later steps.
   function applyKnockback(v) {
     s.ext.x += v.x; s.ext.z += v.z;
+    clampH(s.ext, KNOCKBACK.gameplayMax);
+  }
+  // Raw external push (scripted / physics): only the 84 m/s hard safety clamp applies.
+  function applyExternalRaw(v) {
+    s.ext.x += v.x; s.ext.z += v.z;
     clampH(s.ext);
+  }
+  // Hit: kind 'light' | 'heavy' | 'bossSlam' along a horizontal direction; locks input
+  // (stagger) while the push is faster than walking, never longer than staggerMaxSec.
+  s.staggerLeft = 0;
+  function hit(kind, dir) {
+    const v = KNOCKBACK[kind]; if (typeof v !== 'number') throw new Error(`unknown hit kind ${kind}`);
+    const l = Math.hypot(dir.x, dir.z) || 1;
+    applyKnockback({ x: dir.x / l * v, z: dir.z / l * v });
+    const sp = Math.hypot(s.ext.x, s.ext.z);
+    const n = sp > MOVEMENT.walk ? Math.ceil(Math.log(sp / MOVEMENT.walk) / KNOCKBACK.damping * 60) : 1;
+    s.staggerLeft = Math.max(s.staggerLeft, Math.min(steps(KNOCKBACK.staggerMaxSec), n));
   }
 
   // Stamina (sim-side). Attacks are stubs that only spend stamina for now.
@@ -190,7 +207,9 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   }
 
   // Called once per fixed step, before phys.step().
-  function update(input, dt, env = {}) {
+  function update(inputIn, dt, env = {}) {
+    let input = inputIn;
+    if (s.staggerLeft > 0) { s.staggerLeft--; input = { ...inputIn, mx: 0, mz: 0, dodge: false, light: false, heavy: false, fire: false }; } // stagger lock
     let gait = input.gait ?? GAIT.run;
     const moving = Math.hypot(input.mx, input.mz) > 0 && s.dodgeLeft === 0 && s.dodgeRecovery === 0;
     // Sprint drains stamina; without stamina it falls back to run.
@@ -274,5 +293,5 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   // Test hook: arbitrary desired translation, still routed through the KCC.
   function pushRaw(desired) { return move(desired); }
 
-  return { id, state: s, stamina, update, reachFirstStand() { s.tutorial = false; }, pushRaw, applyKnockback, MAX_H_SPEED, subSteps: (d) => nSub(clampDesired(d)), moveStats: stats, MAX_SUBSTEPS, maxSub, position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
+  return { id, state: s, stamina, update, reachFirstStand() { s.tutorial = false; }, pushRaw, applyKnockback, applyExternalRaw, hit, MAX_H_SPEED, subSteps: (d) => nSub(clampDesired(d)), moveStats: stats, MAX_SUBSTEPS, maxSub, position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
 }
