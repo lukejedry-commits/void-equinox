@@ -9,12 +9,13 @@ export function quantizeYaw(yaw) {
 }
 export function yawFromQ(q) { return (q * 2 * Math.PI) / YAW_Q_STEPS; }
 import { GAIT } from '../config/feel.js';
-export function emptyInput() { return { mx: 0, mz: 0, dodge: false, yawQ: 0, gait: GAIT.run }; }
+export function emptyInput() { return { mx: 0, mz: 0, dodge: false, yawQ: 0, gait: GAIT.run, light: false, heavy: false, fire: false }; }
 
 // getYaw: optional render-side provider of the live camera yaw (radians).
 export function createInput({ getYaw = null } = {}) {
   const held = new Set();
   let dodgeLatched = false;
+  const latched = { light: false, heavy: false, fire: false }; // attack stub edges (J / K / F)
   let source = null; // replay log if set
   let recording = null;
 
@@ -23,7 +24,9 @@ export function createInput({ getYaw = null } = {}) {
     const mz = (held.has('KeyS') ? 1 : 0) - (held.has('KeyW') ? 1 : 0);
     // Gait: run by default, Shift sprints, Alt walks.
     const gait = held.has('ShiftLeft') || held.has('ShiftRight') ? GAIT.sprint : held.has('AltLeft') || held.has('AltRight') ? GAIT.walk : GAIT.run;
-    const f = { mx, mz, dodge: dodgeLatched, yawQ: getYaw ? quantizeYaw(getYaw()) : 0, gait };
+    const f = { mx, mz, dodge: dodgeLatched, yawQ: getYaw ? quantizeYaw(getYaw()) : 0, gait,
+      light: latched.light, heavy: latched.heavy, fire: latched.fire };
+    latched.light = latched.heavy = latched.fire = false;
     dodgeLatched = false; // edge consumed by exactly one step
     return f;
   }
@@ -32,6 +35,7 @@ export function createInput({ getYaw = null } = {}) {
     attach(target = window) {
       target.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !e.repeat) dodgeLatched = true;
+        if (!e.repeat) { if (e.code === 'KeyJ') latched.light = true; if (e.code === 'KeyK') latched.heavy = true; if (e.code === 'KeyF') latched.fire = true; }
         held.add(e.code);
       });
       target.addEventListener('keyup', (e) => held.delete(e.code));
@@ -40,6 +44,7 @@ export function createInput({ getYaw = null } = {}) {
     // Programmatic (tests / AI): set held state & press dodge.
     setHeld(code, down) { down ? held.add(code) : held.delete(code); },
     pressDodge() { dodgeLatched = true; },
+    press(action) { latched[action] = true; }, // 'light' | 'heavy' | 'fire'
     // Called exactly once per physics step, before world.step.
     sample(tick) {
       const f = source ? (source[tick] ?? emptyInput()) : sampleLive();

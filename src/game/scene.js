@@ -33,12 +33,14 @@ export function buildScene({ seed = 1, player = {}, boxes: withBoxes = true, dum
     dummy = { id: phys.add(RAPIER.RigidBodyDesc.fixed().setTranslation(DUMMY.x, y, DUMMY.z),
       RAPIER.ColliderDesc.capsule(DUMMY.halfHeight, DUMMY.radius), 'dummy'), ...DUMMY, y };
   }
-  return { phys, player: p, statics, boxes, dummy };
+  // Sim-side environment flags (e.g. the fire light being lit drives stamina regen).
+  const env = { fireLit: false };
+  return { phys, player: p, statics, boxes, dummy, env };
 }
 
 // One deterministic fixed step: input applied, then world stepped.
 export function stepScene(scene, input, dt) {
-  scene.player.update(input, dt);
+  scene.player.update(input, dt, scene.env);
   scene.phys.step();
 }
 

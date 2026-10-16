@@ -20,4 +20,14 @@ export const DODGE = {
   recoverySec: 0.15,                  // after the burst; only cancellable into another dodge
 };
 
-export const FEEL = { MOVEMENT, DODGE };
+export const STAMINA = {
+  max: 100,
+  cost: { dodge: 20, light: 12, heavy: 28 },
+  fire: { base: 25, perChain: 15, chainWindowSec: 6 }, // +15 per chained cast within 6 s of the previous
+  regenPerSec: 18, regenDelaySec: 0.8,
+  regenFireLitPerSec: 12,             // while the fire light is lit
+  exhaustionSec: 1.2,                 // at 0: no regen for 1.2 s ...
+  exhaustedRegenScale: 0.5,           // ... then half-rate regen until full
+};
+
+export const FEEL = { MOVEMENT, DODGE, STAMINA };
