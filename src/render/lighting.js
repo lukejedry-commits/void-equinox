@@ -6,7 +6,9 @@ import * as THREE from 'three';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
 export const BLEND_SEC = 3;
-export const PRESENCE = { rampIn: 1.5, release: 3, exposure: 1.6, saturation: 0.3, flat: 0xf4f1e6, fog: 0xc4c0b4, fogScale: 0.7 };
+export const PRESENCE = { rampIn: 1.5, release: 3, exposure: 1.6, saturation: 0.3, flat: 0xf4f1e6, fog: 0xc4c0b4, fogScale: 0.7, hemiInt: 0.7, keyInt: 0.1 };
+// PRESENCE.hemiInt: hemisphere fill target under presence; with ground colour -> flat this
+// makes box undersides / contact areas flat and pale instead of the darkest pixels.
 export const HEIGHT_FOG_K = 0.15;           // density * exp(-height * 0.15)
 export const FIRE = { color: 0xff8a3a, intensity: 3, distance: 4, decay: 2, fogScale: 0.3 };
 
@@ -132,11 +134,12 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
   function apply() {
     const p = presence.value;
     lerpState(out, cur, cur, 0);
-    out.key.lerp(flat, p); out.sky.lerp(flat, p); out.ground.lerp(flat, p * 0.8);
+    out.key.lerp(flat, p); out.sky.lerp(flat, p); out.ground.lerp(flat, p);
     out.fog.lerp(paleFog, p); out.fogDensity *= 1 + (PRESENCE.fogScale - 1) * p;
     out.exposure += (PRESENCE.exposure - out.exposure) * p;
     out.saturation += (PRESENCE.saturation - out.saturation) * p;
-    // shadows flattened via sun.shadow.intensity -> 0 below (no ambient boost: keeps tells readable)
+    out.hemiInt += (PRESENCE.hemiInt - out.hemiInt) * p; out.keyInt += (PRESENCE.keyInt - out.keyInt) * p;
+    // shadows flattened via sun.shadow.intensity -> 0 below; hemi fill raised so undersides go pale
     sun.color.copy(out.key); sun.intensity = out.keyInt;
     const el = THREE.MathUtils.degToRad(out.sunDeg), az = THREE.MathUtils.degToRad(out.sunAzDeg);
     sunDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az));
