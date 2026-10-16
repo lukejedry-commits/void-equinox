@@ -13,6 +13,7 @@ import { createPerf } from './debug/perf.js';
 import { createTPSCamera } from './render/camera.js';
 import { addRim } from './render/rim.js';
 import { createStandin } from './render/standin.js';
+import { buildBatches } from './render/batch.js';
 import './style.css';
 
 await initRapier();
@@ -39,16 +40,12 @@ const ember = new THREE.PointLight(0xff5a1f, 20, 12);
 ember.position.set(2, 2, -2); three.add(ember);
 
 const sync = createSync(scene.phys);
-const mats = {
-  // Neutral mid-grey test geometry so lighting profiles (not albedo) carry the colour.
-  ground: new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 1 }),
-  wall: new THREE.MeshStandardMaterial({ color: 0x7a7a7a, roughness: 0.8 }),
-  box: new THREE.MeshStandardMaterial({ color: 0x858585, roughness: 0.85 }),
-};
-for (const s of [...scene.statics.map((o) => ({ ...o, m: mats[o.kind] })), ...scene.boxes.map((o) => ({ ...o, m: mats.box }))]) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...s.size), s.m);
-  mesh.castShadow = mesh.receiveShadow = true; three.add(mesh); sync.link(s.id, mesh);
-}
+// Neutral mid-grey test geometry so lighting profiles (not albedo) carry the colour.
+// One shared material lets statics merge and boxes instance (draw-call batching).
+const mats = { ground: new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.95 }) };
+// Batched: statics merged into one mesh, boxes instanced (see render/batch.js).
+const batches = buildBatches({ statics: scene.statics, boxes: scene.boxes, sync, phys: scene.phys, material: mats.ground });
+three.add(batches.staticMesh, batches.inst);
 const pm = new THREE.Group();
 const standin = createStandin(); pm.add(standin.object); // visual only, follows synced capsule
 window.__standin = standin;
@@ -105,12 +102,14 @@ function frame(tMs) {
   const dt = lastT === null ? 0 : (tMs - lastT) / 1000; lastT = tMs;
   const alpha = loop.advance(dt);
   sync.apply(alpha); // the only place mesh transforms are written
+  batches.update();
   const sp = dt > 0 ? Math.hypot(pm.position.x - lastPos.x, pm.position.z - lastPos.z) / dt : 0;
   lastPos.copy(pm.position);
   standin.update(dt, { speed: sp, dodging: scene.player.state.dodgeLeft > 0 });
   tps.update(dt, pm.position); // render-side only; sim sees yaw via recorded input.yawQ
   renderer.info.reset(); renderer.info.autoReset = false;
   preset.bloom ? composer.render() : renderer.render(three, camera);
+  window.__drawCalls = renderer.info.render.calls;
   quality.frame(dt);
   perf.update({ frameMs: dt * 1000, physicsMs: loop.stats.physicsMs, steps: loop.stats.stepsThisFrame, renderer, tier: preset.name, auto: quality.auto });
 }
