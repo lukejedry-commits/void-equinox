@@ -61,4 +61,8 @@ export const TOUCH = {
   heavyChargeSec: 0.6,                // hold heavy this long -> charged heavy
 };
 
-export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL, KNOCKBACK, CAMERA, TOUCH };
+// Attack windups (recorded here only; the combat spec comes later). Minimums, seconds.
+// Matches the tell lead times in render/tells.js (0.4 s, 0.6 s during silence).
+export const ATTACK = { windupMinSec: 0.4, windupMinSilenceSec: 0.6 };
+
+export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL, KNOCKBACK, CAMERA, TOUCH, ATTACK };
