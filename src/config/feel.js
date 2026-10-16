@@ -14,4 +14,10 @@ export const MOVEMENT = {
 // Gait codes carried in the recorded input frame (`gait`).
 export const GAIT = { walk: 0, run: 1, sprint: 2 };
 
-export const FEEL = { MOVEMENT };
+export const DODGE = {
+  distance: 2.8, durationSec: 0.55,   // 2.8 m over 0.55 s (constant-speed burst through the KCC)
+  iframeStartSec: 0.08, iframeEndSec: 0.38,
+  recoverySec: 0.15,                  // after the burst; only cancellable into another dodge
+};
+
+export const FEEL = { MOVEMENT, DODGE };

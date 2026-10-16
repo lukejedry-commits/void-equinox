@@ -4,6 +4,7 @@ import { initRapier, bits } from './helpers.js';
 import { buildScene, stepScene } from '../src/game/scene.js';
 import { createLoop } from '../src/core/loop.js';
 import { createInput } from '../src/core/input.js';
+import { DODGE } from '../src/config/feel.js';
 
 function dodgeAt(hz) {
   const scene = buildScene({ seed: 5, player: { x: -2, z: 6 } });
@@ -26,7 +27,7 @@ test('fixed-step dodge distance 2.8 m (1%) and identical at 30/60/144 Hz render'
   await initRapier();
   const r = [30, 60, 144].map((hz) => ({ hz, ...dodgeAt(hz) }));
   for (const x of r) console.log(`# ${x.hz} Hz: dodge distance=${x.d} bits=${bits(x.d)} steps=${x.steps}`);
-  const expected = 14 * 12 / 60; // dodgeSpeed * dodgeSteps * FIXED_DT = 2.8 m
+  const expected = DODGE.distance; // feel.js: 2.8 m over 0.55 s
   for (const x of r) assert.ok(Math.abs(x.d - expected) / expected < 0.01, `${x.hz} Hz: ${x.d} not within 1% of ${expected}`);
   assert.equal(bits(r[1].d), bits(r[0].d));
   assert.equal(bits(r[2].d), bits(r[0].d));

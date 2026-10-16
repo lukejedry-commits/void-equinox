@@ -1,5 +1,5 @@
 import { yawFromQ } from '../core/input.js';
-import { MOVEMENT, GAIT } from '../config/feel.js';
+import { MOVEMENT, GAIT, DODGE, steps } from '../config/feel.js';
 // Kinematic capsule driven by Rapier KinematicCharacterController.
 // All motion goes through computeColliderMovement -> setNextKinematicTranslation.
 
@@ -11,7 +11,11 @@ export const PLAYER_TUNING = {
   snapDistance: 0.3,                    // TODO(Mechanics)
   baseTurnRate: 14,                     // TODO(Mechanics)
   movement: MOVEMENT,                   // walk/run/sprint, accel/decel: src/config/feel.js
-  dodgeSpeed: 14, dodgeSteps: 12, dodgeCooldownSteps: 30, // TODO(Mechanics)
+  dodge: DODGE,                         // feel.js
+  dodgeSteps: steps(DODGE.durationSec),                   // 33
+  dodgeSpeed: DODGE.distance / DODGE.durationSec,         // 5.09 m/s
+  dodgeIframeSteps: [steps(DODGE.iframeStartSec), steps(DODGE.iframeEndSec)], // [5, 23) elapsed steps
+  dodgeRecoverySteps: steps(DODGE.recoverySec),           // 9
   gravity: -20,                         // TODO(Mechanics)
   knockbackDamping: 6,                  // 1/s exponential decay of external velocity. TODO(Mechanics)
 };
@@ -103,6 +107,25 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
       if (h > sinLim) contactNormals.push({ x: nx / h, z: nz / h });
     }
   }
+  // Skin guard: Rapier's KCC ignores obstacles it starts within its contact offset of,
+  // so a slow slide that ends exactly at the skin could pass into a static wall next
+  // step. Sweep the actual capsule along the KCC's movement against FIXED colliders
+  // (target distance 0); on a hit, drop the into-surface component (tangential slide is
+  // kept). Pure function of the pose and movement -> deterministic.
+  const ident = { x: 0, y: 0, z: 0, w: 1 };
+  const isFixed = (c) => { const b = c.parent(); return !!b && b.isFixed(); };
+  function guardStatic(mv) {
+    const m = { x: mv.x, y: mv.y, z: mv.z };
+    if (Math.hypot(m.x, m.z) < 1e-9) return m;
+    const hit = world.castShape(entry.collider.translation(), ident, m, entry.collider.shape, 0, 1, true,
+      undefined, undefined, entry.collider, undefined, isFixed);
+    if (!hit || hit.time_of_impact >= 1) return m;
+    const n = hit.normal1, h = Math.hypot(n.x, n.z);
+    if (h < 1e-6) return m; // floor / ceiling contact: leave to the KCC
+    const nx = n.x / h, nz = n.z / h, d = m.x * nx + m.z * nz;
+    if (d < 0) { m.x -= d * nx; m.z -= d * nz; }
+    return m;
+  }
   function move(desiredIn) {
     contactNormals.length = 0;
     const desired = clampDesired(desiredIn);
@@ -115,7 +138,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     let grounded = false;
     for (let i = 0; i < n; i++) {
       kcc.computeColliderMovement(entry.collider, sd);
-      const m = kcc.computedMovement();
+      const m = guardStatic(kcc.computedMovement());
       grounded = kcc.computedGrounded();
       collectNormals();
       total.x += m.x; total.y += m.y; total.z += m.z;
@@ -125,7 +148,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
       if (req > 0 && got < 0.1 * req && kcc.numComputedCollisions() > 0) {
         entry.collider.setTranslation({ x: t0.x + total.x, y: t0.y + total.y, z: t0.z + total.z });
         kcc.computeColliderMovement(entry.collider, { x: sd.x - m.x, y: sd.y - m.y, z: sd.z - m.z });
-        const m2 = kcc.computedMovement();
+        const m2 = guardStatic(kcc.computedMovement());
         grounded = kcc.computedGrounded();
         collectNormals();
         total.x += m2.x; total.y += m2.y; total.z += m2.z;
@@ -140,7 +163,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
 
   const s = {
     id, heaviness, vel: { x: 0, y: 0, z: 0 }, yaw: 0,
-    dodgeLeft: 0, dodgeCd: 0, dodgeDir: { x: 0, z: -1 }, grounded: false,
+    dodgeLeft: 0, dodgeRecovery: 0, iframes: false, dodgeDir: { x: 0, z: -1 }, grounded: false,
     dodgeTravel: 0, lastDodgeDistance: 0,
     ext: { x: 0, z: 0 }, // knockback / external push velocity (m/s), |ext| <= MAX_H_SPEED
   };
@@ -151,6 +174,9 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     s.ext.x += v.x; s.ext.z += v.z;
     clampH(s.ext);
   }
+
+  // Gate hook (stamina / tutorial add conditions in later systems).
+  const canDodge = () => true;
 
   // Called once per fixed step, before phys.step().
   function update(input, dt) {
@@ -166,15 +192,20 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
       const rx = ix * c + iz * sn, rz = -ix * sn + iz * c; ix = rx; iz = rz;
     }
 
-    if (s.dodgeCd > 0) s.dodgeCd--;
-    if (input.dodge && s.dodgeLeft === 0 && s.dodgeCd === 0) {
+    // Dodge: available when not mid-burst; recovery may only be cancelled by a new dodge.
+    if (input.dodge && s.dodgeLeft === 0 && canDodge(input)) {
+      s.dodgeRecovery = 0;
       if (len > 0) s.dodgeDir = { x: ix, z: iz };
       else s.dodgeDir = { x: -Math.sin(s.yaw), z: -Math.cos(s.yaw) };
       s.dodgeLeft = T.dodgeSteps; s.dodgeTravel = 0;
     }
 
     let dx, dz;
-    if (s.dodgeLeft > 0) { // placeholder dodge: fixed-speed burst through the KCC
+    const elapsed = T.dodgeSteps - s.dodgeLeft; // steps already done in this burst
+    s.iframes = s.dodgeLeft > 0 && elapsed >= T.dodgeIframeSteps[0] && elapsed < T.dodgeIframeSteps[1];
+    if (s.dodgeRecovery > 0) { // locked: no steering, no movement
+      s.dodgeRecovery--; s.vel.x = 0; s.vel.z = 0; dx = 0; dz = 0;
+    } else if (s.dodgeLeft > 0) { // placeholder dodge: fixed-speed burst through the KCC
       dx = s.dodgeDir.x * T.dodgeSpeed; dz = s.dodgeDir.z * T.dodgeSpeed;
       s.vel.x = dx; s.vel.z = dz;
     } else {
@@ -219,7 +250,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     entry.body.setNextKinematicRotation({ x: 0, y: Math.sin(s.yaw / 2), z: 0, w: Math.cos(s.yaw / 2) });
     if (s.dodgeLeft > 0) {
       s.dodgeTravel += Math.hypot(m.x, m.z);
-      if (--s.dodgeLeft === 0) { s.lastDodgeDistance = s.dodgeTravel; s.dodgeCd = T.dodgeCooldownSteps; }
+      if (--s.dodgeLeft === 0) { s.lastDodgeDistance = s.dodgeTravel; s.dodgeRecovery = T.dodgeRecoverySteps; s.vel.x = 0; s.vel.z = 0; }
     }
   }
 
