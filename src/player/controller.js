@@ -38,33 +38,31 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   kcc.enableSnapToGround(T.snapDistance);
   kcc.setApplyImpulsesToDynamicBodies(true);
 
-  // Anti-tunnelling guard: the KCC shape-cast can miss a thin wall when the capsule
-  // already rests within its contact offset. Re-check horizontal motion with rays
-  // against static geometry (3 heights) and clamp. Still no direct position writes.
-  const ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 });
-  const STATIC_ONLY = RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC | RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC;
-  function guard(m) {
-    const len = Math.hypot(m.x, m.z);
-    if (len < 1e-6) return m;
-    const t = entry.body.translation();
-    const dx = m.x / len, dz = m.z / len;
-    let allowed = len;
-    for (const oy of [-T.halfHeight, 0, T.halfHeight]) {
-      ray.origin = { x: t.x, y: t.y + oy, z: t.z }; ray.dir = { x: dx, y: 0, z: dz };
-      const hit = world.castRay(ray, len + T.radius, true, STATIC_ONLY, undefined, entry.collider);
-      if (hit) allowed = Math.min(allowed, Math.max(0, hit.timeOfImpact - T.radius - 0.02));
-    }
-    return allowed < len ? { x: dx * allowed, y: m.y, z: dz * allowed } : m;
-  }
+  // Anti-tunnelling via substepping: split the desired translation into
+  // N = ceil(|desired| / (0.5 * radius)) sub-moves, each swept by the KCC from the
+  // position the previous sub-move reached. The collider pose is advanced only by
+  // computed movement (so each sweep starts at the new spot); the body gets the
+  // summed movement as its next kinematic translation. Deterministic: N is a pure
+  // function of the input vector.
+  const maxSub = 0.5 * T.radius;
+  let lastGrounded = false;
   function move(desired) {
-    kcc.computeColliderMovement(entry.collider, desired);
-    const m = guard(kcc.computedMovement());
-    // Huge lateral pushes can make the KCC "climb" a vertical wall; cap rise to autostep.
-    const maxRise = Math.max(desired.y, 0) + T.autostepHeight;
-    if (m.y > maxRise) m.y = maxRise;
-    const t = entry.body.translation();
-    entry.body.setNextKinematicTranslation({ x: t.x + m.x, y: t.y + m.y, z: t.z + m.z });
-    return m;
+    const len = Math.hypot(desired.x, desired.y, desired.z);
+    const n = Math.max(1, Math.ceil(len / maxSub));
+    const sd = { x: desired.x / n, y: desired.y / n, z: desired.z / n };
+    const t0 = entry.body.translation();
+    const total = { x: 0, y: 0, z: 0 };
+    let grounded = false;
+    for (let i = 0; i < n; i++) {
+      kcc.computeColliderMovement(entry.collider, sd);
+      const m = kcc.computedMovement();
+      grounded = kcc.computedGrounded();
+      total.x += m.x; total.y += m.y; total.z += m.z;
+      if (i < n - 1) entry.collider.setTranslation({ x: t0.x + total.x, y: t0.y + total.y, z: t0.z + total.z });
+    }
+    lastGrounded = grounded;
+    entry.body.setNextKinematicTranslation({ x: t0.x + total.x, y: t0.y + total.y, z: t0.z + total.z });
+    return total;
   }
 
   const s = {
@@ -108,7 +106,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
 
     const desired = { x: dx * dt, y: s.vel.y * dt, z: dz * dt };
     const m = move(desired);
-    s.grounded = kcc.computedGrounded();
+    s.grounded = lastGrounded;
     entry.body.setNextKinematicRotation({ x: 0, y: Math.sin(s.yaw / 2), z: 0, w: Math.cos(s.yaw / 2) });
     if (s.dodgeLeft > 0) {
       s.dodgeTravel += Math.hypot(m.x, m.z);
@@ -119,5 +117,5 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   // Test hook: arbitrary desired translation, still routed through the KCC.
   function pushRaw(desired) { return move(desired); }
 
-  return { id, state: s, update, pushRaw, position: () => entry.body.translation(), kcc };
+  return { id, state: s, update, pushRaw, subSteps: (d) => Math.max(1, Math.ceil(Math.hypot(d.x, d.y, d.z) / maxSub)), position: () => entry.body.translation(), kcc };
 }
