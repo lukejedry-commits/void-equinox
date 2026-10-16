@@ -76,14 +76,16 @@ export function createStandin() {
   // Upper body pivots at the hips and stoops heavily forward (-Z).
   const upper = new THREE.Group(); upper.position.y = 1.0; rig.add(upper);
   const BASE_STOOP = -0.42;
+  const HEAD_PITCH = -20 * Math.PI / 180; // head+hood hang ~20 deg forward/down from the torso line
+  const SHOULDER_DROP = 0.07;             // shoulders slump below the neck line
   upper.rotation.x = BASE_STOOP;
   add(upper, new THREE.CylinderGeometry(0.17, 0.14, 0.62, 10), bodyMat, 0, 0.3, 0);
-  const mantle = add(upper, new THREE.SphereGeometry(1, 16, 10), cloakMat, 0, 0.58, 0.02);
-  mantle.scale.set(0.32, 0.13, 0.2); // slumped shoulder cape
+  const mantle = add(upper, new THREE.SphereGeometry(1, 16, 10), cloakMat, 0, 0.58 - SHOULDER_DROP, 0.03);
+  mantle.scale.set(0.34, 0.12, 0.2); mantle.rotation.x = 0.18; // slumped shoulder cape
   const chest = add(upper, new THREE.SphereGeometry(0.035, 10, 8), emberMat(), 0, 0.42, -0.165);
 
   // Neck juts forward from the stoop; head hangs.
-  const head = new THREE.Group(); head.position.set(0, 0.66, -0.1); head.rotation.x = 0.3; upper.add(head);
+  const head = new THREE.Group(); head.position.set(0, 0.62, -0.13); head.rotation.x = HEAD_PITCH; upper.add(head);
   add(head, new THREE.SphereGeometry(0.11, 12, 10), new THREE.MeshStandardMaterial({ color: 0x0b0a0a, roughness: 1 }), 0, 0.12, 0.01); // face in shadow
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x7a2c10 }); // faint ember eyes
   for (const s of [-1, 1]) add(head, new THREE.SphereGeometry(0.009, 6, 4), eyeMat, s * 0.035, 0.14, -0.1);
@@ -92,7 +94,7 @@ export function createStandin() {
   // Long thin arms from slumped shoulders.
   const arms = [];
   for (const s of [-1, 1]) {
-    const sh = new THREE.Group(); sh.position.set(s * 0.27, 0.52, 0); sh.rotation.z = s * 0.12; upper.add(sh);
+    const sh = new THREE.Group(); sh.position.set(s * 0.27, 0.52 - SHOULDER_DROP, 0.01); sh.rotation.z = s * 0.06; upper.add(sh);
     add(sh, new THREE.CylinderGeometry(0.075, 0.06, 0.42, 8), cloakMat, 0, -0.2, 0); // sleeve
     add(sh, new THREE.CylinderGeometry(0.04, 0.035, 0.44, 8), bodyMat, 0, -0.2, 0);
     const el = new THREE.Group(); el.position.y = -0.42; sh.add(el);
@@ -127,7 +129,7 @@ export function createStandin() {
       rig.rotation.x = -lean - lunge * 0.35;
       rig.position.z = -lunge * 0.15;
       upper.rotation.x = BASE_STOOP - lunge * 0.25;
-      head.rotation.x = 0.3 - lunge * 0.3;
+      head.rotation.x = HEAD_PITCH - lunge * 0.3;
       for (const a of arms) {
         const swing = Math.sin(phase + (a.s > 0 ? 0 : Math.PI)) * 0.35 * s01;
         a.sh.rotation.x = 0.15 + swing * (1 - lunge) + lunge * 1.1; // lunge: arms thrown back
