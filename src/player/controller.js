@@ -77,14 +77,25 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   // reported by the KCC during the current step's sub-moves.
   const contactNormals = [];
   function collectNormals() {
+    // Wall if steeper than slopeLimitDeg: for a unit contact normal, horizontal
+    // magnitude > sin(limit) (equiv. n.y < cos(limit)). Uses T.slopeLimitDeg — the
+    // same tuning constant as setMaxSlopeClimbAngle — not a duplicate angle literal.
+    const slopeLim = T.slopeLimitDeg * Math.PI / 180;
+    const sinLim = Math.sin(slopeLim);
     for (let i = 0, k = kcc.numComputedCollisions(); i < k; i++) {
       const c = kcc.computedCollision(i); if (!c) continue;
-      // normal1 is on the character's shape; in this Rapier build it points from the
-      // obstacle toward the character (e.g. -x against a wall on +x). Only wall-like
-      // contacts (horizontal part >= cos(slope limit)) count: floor normals have a
-      // tiny horizontal part that, once normalised, would be arbitrary.
-      const n = c.normal1, h = Math.hypot(n.x, n.z);
-      if (h >= Math.cos(T.slopeLimitDeg * Math.PI / 180)) contactNormals.push({ x: n.x / h, z: n.z / h });
+      // Orient normal1 so it points from the obstacle toward the character: if
+      // dot(n, p_player - p_contact) < 0 then flip. p_contact = Rapier
+      // CharacterCollision.witness1 (world-space contact on the obstacle collider);
+      // p_player = the character collider translation. (witness1/witness2 are always
+      // present on CharacterCollision in this Rapier build; we do not fall back.)
+      let nx = c.normal1.x, ny = c.normal1.y, nz = c.normal1.z;
+      const p = entry.collider.translation(), w = c.witness1;
+      if (nx * (p.x - w.x) + ny * (p.y - w.y) + nz * (p.z - w.z) < 0) {
+        nx = -nx; ny = -ny; nz = -nz;
+      }
+      const h = Math.hypot(nx, nz);
+      if (h > sinLim) contactNormals.push({ x: nx / h, z: nz / h });
     }
   }
   function move(desiredIn) {
