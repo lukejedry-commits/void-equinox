@@ -10,7 +10,10 @@ const D = Math.PI / 180;
 export const CAMERA_TUNING = {
   fovDeg: 60,              // vertical FOV. TODO(Mechanics)
   near: 0.1,               // TODO(Mechanics)
-  distance: 4.5,           // metres behind pivot. TODO(Mechanics)
+  distance: 4.5,           // metres behind pivot (landscape). TODO(Mechanics)
+  portraitHFovDeg: 65,     // portrait (aspect < 1): vertical FOV chosen so horizontal FOV >= this
+  portraitDistance: 5.5,   // portrait camera distance, metres
+  frameBlend: 6,           // 1/s exponential blend of FOV/distance on orientation change
   shoulder: 0.6,           // metres right of pivot (Solenius sits left of centre). TODO(Mechanics)
   pivotHeight: 0.9,        // above capsule centre == 1.8 m above feet (head). TODO(Mechanics)
   aimUp: 0.55,             // look point above pivot -> character in the lower third. TODO(Mechanics)
@@ -41,7 +44,20 @@ const ease = (rate, dt) => 1 - Math.exp(-rate * dt);
 export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys = null, targets = [], tuning = CAMERA_TUNING, onFade = null } = {}) {
   const T = tuning;
   camera.fov = T.fovDeg; camera.near = T.near; camera.updateProjectionMatrix();
-  const st = { yaw: 0, pitch: T.defaultPitchDeg * D, tYaw: 0, tPitch: T.defaultPitchDeg * D, dist: T.distance, lock: null };
+  const st = { yaw: 0, pitch: T.defaultPitchDeg * D, tYaw: 0, tPitch: T.defaultPitchDeg * D, dist: T.distance, lock: null,
+    fov: T.fovDeg, baseDist: T.distance, framed: false };
+  // Portrait framing (render-side only): target FOV / distance from the current aspect.
+  function frameTargets() {
+    const a = camera.aspect;
+    if (a < 1) return { fov: 2 * Math.atan(Math.tan((T.portraitHFovDeg * D) / 2) / a) / D, dist: T.portraitDistance };
+    return { fov: T.fovDeg, dist: T.distance };
+  }
+  function applyFraming(dt) {
+    const t = frameTargets();
+    const k = st.framed ? ease(T.frameBlend, dt) : 1; st.framed = true;
+    st.fov += (t.fov - st.fov) * k; st.baseDist += (t.dist - st.baseDist) * k;
+    if (Math.abs(camera.fov - st.fov) > 1e-4) { camera.fov = st.fov; camera.updateProjectionMatrix(); }
+  }
   const pivot = new THREE.Vector3(), haveP = { v: false };
   const keys = new Set();
   let mdx = 0, mdy = 0;
@@ -68,6 +84,7 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
   }
 
   function update(dt, playerPos) {
+    applyFraming(dt);
     // --- input (render side) ---
     let dy = -mdx * T.mouseSens, dp = mdy * T.mouseSens; mdx = mdy = 0;
     dy += ((keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0)) * T.keySens * dt;
@@ -105,9 +122,9 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
     const shoulder = tmp.set(pivot.x + cy * T.shoulder, pivot.y, pivot.z - sy * T.shoulder);
     const sf = collide(pivot, shoulder); // keep the shoulder offset itself out of walls
     shoulder.set(pivot.x + (shoulder.x - pivot.x) * sf, pivot.y, pivot.z + (shoulder.z - pivot.z) * sf);
-    const full = new THREE.Vector3(shoulder.x + sy * cp * T.distance, shoulder.y + sp * T.distance, shoulder.z + cy * cp * T.distance);
+    const full = new THREE.Vector3(shoulder.x + sy * cp * st.baseDist, shoulder.y + sp * st.baseDist, shoulder.z + cy * cp * st.baseDist);
     const f = collide(shoulder, full);
-    const allowed = f * T.distance;
+    const allowed = f * st.baseDist;
     st.dist = allowed < st.dist ? allowed : st.dist + (allowed - st.dist) * ease(T.pullOutSpeed, dt);
     camera.position.set(shoulder.x + sy * cp * st.dist, shoulder.y + sp * st.dist, shoulder.z + cy * cp * st.dist);
     // --- look point: ahead along view, raised so the character sits in the lower third ---
@@ -139,5 +156,6 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
     orbit(dYaw, dPitch = 0) { if (!st.lock) { st.tYaw += dYaw; st.tPitch += dPitch; } },
     setYaw(y, p = st.pitch) { st.yaw = st.tYaw = y; st.pitch = st.tPitch = p; },
     get locked() { return st.lock; },
+    get framing() { return { fov: st.fov, distance: st.baseDist, portrait: camera.aspect < 1 }; },
   };
 }
