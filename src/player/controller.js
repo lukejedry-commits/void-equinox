@@ -72,7 +72,22 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   }
   const nSub = (d) => Math.min(MAX_SUBSTEPS, Math.max(1, Math.ceil(Math.hypot(d.x, d.y, d.z) / maxSub)));
   const stats = { lastN: 0, lastSubLen: 0, lastClamped: { x: 0, y: 0, z: 0 }, clampedSteps: 0 };
+  // Horizontal contact normals (pointing from the obstacle toward the character)
+  // reported by the KCC during the current step's sub-moves.
+  const contactNormals = [];
+  function collectNormals() {
+    for (let i = 0, k = kcc.numComputedCollisions(); i < k; i++) {
+      const c = kcc.computedCollision(i); if (!c) continue;
+      // normal1 is on the character's shape; in this Rapier build it points from the
+      // obstacle toward the character (e.g. -x against a wall on +x). Only wall-like
+      // contacts (horizontal part >= cos(slope limit)) count: floor normals have a
+      // tiny horizontal part that, once normalised, would be arbitrary.
+      const n = c.normal1, h = Math.hypot(n.x, n.z);
+      if (h >= Math.cos(T.slopeLimitDeg * Math.PI / 180)) contactNormals.push({ x: n.x / h, z: n.z / h });
+    }
+  }
   function move(desiredIn) {
+    contactNormals.length = 0;
     const desired = clampDesired(desiredIn);
     if (desired.x !== desiredIn.x || desired.y !== desiredIn.y || desired.z !== desiredIn.z) stats.clampedSteps++;
     const n = nSub(desired);
@@ -85,6 +100,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
       kcc.computeColliderMovement(entry.collider, sd);
       const m = kcc.computedMovement();
       grounded = kcc.computedGrounded();
+      collectNormals();
       total.x += m.x; total.y += m.y; total.z += m.z;
       // Stall recovery: a sub-move that achieved <10% of its request while in
       // contact is retried ONCE from where it stopped with the remaining movement.
@@ -94,6 +110,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
         kcc.computeColliderMovement(entry.collider, { x: sd.x - m.x, y: sd.y - m.y, z: sd.z - m.z });
         const m2 = kcc.computedMovement();
         grounded = kcc.computedGrounded();
+        collectNormals();
         total.x += m2.x; total.y += m2.y; total.z += m2.z;
         stallRetries++;
       }
@@ -167,6 +184,12 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     const desired = { x: dx * dt, y: s.vel.y * dt, z: dz * dt };
     const m = move(desired);
     s.grounded = lastGrounded;
+    // Remove the into-obstacle component of knockback so it cannot pin the
+    // player against a wall: for each contact normal n, if ext.n < 0, ext -= (ext.n) n.
+    for (const n of contactNormals) {
+      const d = s.ext.x * n.x + s.ext.z * n.z;
+      if (d < 0) { s.ext.x -= d * n.x; s.ext.z -= d * n.z; }
+    }
     entry.body.setNextKinematicRotation({ x: 0, y: Math.sin(s.yaw / 2), z: 0, w: Math.cos(s.yaw / 2) });
     if (s.dodgeLeft > 0) {
       s.dodgeTravel += Math.hypot(m.x, m.z);
