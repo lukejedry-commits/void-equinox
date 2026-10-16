@@ -8,7 +8,9 @@
     "preview": "vite preview",
     "test": "node --test tests/",
     "test:pen-isolation": "node scripts/pen-isolation.js",
-    "test:nightly": "STRESS_SEEDS=${STRESS_SEEDS:-1000} node --test tests/"
+    "test:nightly": "STRESS_SEEDS=${STRESS_SEEDS:-1000} node --test tests/",
+    "check:readability": "node scripts/readability-check.mjs",
+    "shots:lighting": "node scripts/lighting-shots.mjs"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +20,7 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "puppeteer-core": "^23.11.1",
     "vite": "^5.4.21"
   },
   "private": true,

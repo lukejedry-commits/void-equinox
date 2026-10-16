@@ -41,3 +41,14 @@ export function stepScene(scene, input, dt) {
   scene.player.update(input, dt);
   scene.phys.step();
 }
+
+// Lighting zone trigger volumes (pure data; consumed render-side only by
+// render/lighting.js createZoneTriggers). AABB min/max in metres. Not added to physics,
+// so they cannot affect sim determinism.
+export const LIGHT_ZONES = [
+  { id: 'act1-arena', profile: 'act1_arena', min: [-25, -5, 9], max: [25, 10, 25] },
+  { id: 'act2-boss', profile: 'act2_boss', min: [-25, -5, -25], max: [-14, 10, -12] },
+  { id: 'act2', profile: 'act2', min: [-25, -5, -25], max: [-8, 10, 9] },
+  { id: 'act3-door', profile: 'act3', min: [-8, -5, -25], max: [25, 10, -10] },
+  { id: 'act1', profile: 'act1', min: [-8, -5, -10], max: [25, 10, 9] },
+];
