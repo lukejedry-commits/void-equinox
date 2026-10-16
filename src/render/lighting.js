@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
 export const BLEND_SEC = 3;
-export const PRESENCE = { rampIn: 1.5, release: 3, exposure: 1.6, saturation: 0.3, flat: 0xf4f1e6, fog: 0xc4c0b4, fogScale: 0.7, hemiInt: 0.7, keyInt: 0.1 };
+export const PRESENCE = { rampIn: 1.5, release: 3, exposure: 1.6, saturation: 0.3, flat: 0xf4f1e6, fog: 0xc4c0b4, fogScale: 0.7, hemiInt: 0.7, keyInt: 0.1, albedoMax: 0.85 };
 // PRESENCE.hemiInt: hemisphere fill target under presence; with ground colour -> flat this
 // makes box undersides / contact areas flat and pale instead of the darkest pixels.
 // Act 1 sky: vertical gradient background (horizon -> zenith), weighted by profile.skyGrad.
@@ -62,7 +62,13 @@ function patchFogChunks() {
   C.fog_pars_fragment += `
 #ifdef USE_FOG
 varying vec3 vFogWorld;
-uniform float uFogHeightK; uniform vec3 uFirePos; uniform float uFireOn; uniform float uFireRadius; uniform float uFireFogScale;
+uniform float uFogHeightK; uniform float uPresence; uniform vec3 uFirePos; uniform float uFireOn; uniform float uFireRadius; uniform float uFireFogScale;
+#endif
+`;
+  // Presence albedo clamp: no surface reflects more than ALBEDO_MAX_PRESENCE under Meridius.
+  C.color_fragment += `
+#ifdef USE_FOG
+  if ( uPresence > 0.0 ) diffuseColor.rgb = mix( diffuseColor.rgb, min( diffuseColor.rgb, vec3( ${PRESENCE.albedoMax.toFixed(3)} ) ), uPresence );
 #endif
 `;
   C.fog_fragment = `
