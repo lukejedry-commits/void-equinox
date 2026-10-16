@@ -40,7 +40,8 @@ test(`dodge into thin wall x${RUNS}: zero tunnelling`, async () => {
 test(`strong push into thin wall x${RUNS}: zero tunnelling`, async () => {
   await initRapier();
   const rng = mulberry32(999);
-  let tunnels = 0, hits = 0, maxX = -Infinity;
+  let tunnels = 0, hits = 0, maxX = -Infinity, maxY = -Infinity, maxPen = 0, above = 0;
+  const wallTop = 2 * WALL.halfHeight;
   for (let r = 0; r < RUNS; r++) {
     const scene = buildScene({ seed: r, player: { x: rng.range(face - 3.5, face - 0.4), z: rng.range(-2.5, 2.5) } });
     settle(scene);
@@ -52,11 +53,73 @@ test(`strong push into thin wall x${RUNS}: zero tunnelling`, async () => {
       const p = scene.player.position(), x = p.x;
       if (through(px, x, p.z)) { tunnels++; console.log(`# TUNNEL run ${r} step ${i} px=${px} x=${x} z=${p.z}`); break; }
       if (Math.abs(p.z) < WALL.halfDepth) maxX = Math.max(maxX, x);
+      if (Math.abs(p.z) < WALL.halfDepth - R) { const pen = x - (face - R); if (pen > 0.03) console.log(`# PEN run ${r} step ${i} pen=${pen.toFixed(4)} x=${x} y=${p.y} z=${p.z}`); maxPen = Math.max(maxPen, pen); } // capsule fully in front of face
+      maxY = Math.max(maxY, p.y);
+      if (p.y > wallTop) { above++; console.log(`# ABOVE WALL run ${r} step ${i} y=${p.y}`); break; }
       if (touched(x) && !hit) { hit = true; hits++; }
       px = x;
     }
     scene.phys.free();
   }
+  console.log(`# push: max centre y=${maxY.toFixed(4)} (wall top ${wallTop}), runs ending above wall top=${above}, max penetration into face=${maxPen.toFixed(4)} m`);
   console.log(`# push: ${RUNS} runs, wall contacts=${hits}, tunnels=${tunnels}, max x within wall span=${maxX.toFixed(4)}`);
   assert.equal(tunnels, 0);
+  assert.equal(above, 0);
+  assert.ok(maxY <= wallTop);
+});
+
+test('slide along wall at shallow angle (10 deg): keeps moving tangentially', async () => {
+  await initRapier();
+  const scene = buildScene({ seed: 3, player: { x: face - R - 0.05, z: -3.2 } });
+  settle(scene);
+  const a = 10 * Math.PI / 180, v = 6 * FIXED_DT; // 6 m/s
+  const p0 = scene.player.position();
+  const z0 = p0.z; let maxX = -Infinity, stalls = 0, prevZ = z0;
+  const N = 45;
+  for (let i = 0; i < N; i++) {
+    scene.player.pushRaw({ x: v * Math.sin(a), y: 0, z: v * Math.cos(a) });
+    scene.phys.step();
+    const p = scene.player.position();
+    maxX = Math.max(maxX, p.x);
+    if (p.z - prevZ < 0.25 * v * Math.cos(a)) { stalls++; console.log(`# SLIDE STALL step ${i} dz=${p.z - prevZ} x=${p.x}`); }
+    prevZ = p.z;
+  }
+  const slid = scene.player.position().z - z0, ideal = N * v * Math.cos(a);
+  console.log(`# slide: tangential=${slid.toFixed(4)} m of ideal ${ideal.toFixed(4)} (${(100 * slid / ideal).toFixed(1)}%), stalled steps=${stalls}/${N}, max x=${maxX.toFixed(4)} (face-R=${(face - R).toFixed(4)})`);
+  scene.phys.free();
+  assert.ok(maxX >= face - R - 0.05, 'never reached the wall');
+  assert.ok(maxX <= face - R + 0.005, 'penetrated wall');
+  assert.equal(stalls, 0);
+  assert.ok(slid > 0.9 * ideal);
+});
+
+test(`thin pillar (0.1 m) off-centre big pushes x${RUNS}: zero pass-throughs`, async () => {
+  await initRapier();
+  const rng = mulberry32(4242);
+  const PR = 0.05, PX = -15, PZ = -10, reach = R + PR;
+  let passes = 0, maxPen = 0, contacts = 0, roundedOff = 0;
+  for (let r = 0; r < RUNS; r++) {
+    const scene = buildScene({ seed: r, player: { x: PX + rng.range(-0.9, 0.9) * reach, z: PZ + rng.range(1.0, 3.0) } });
+    const { RAPIER } = scene.phys;
+    scene.phys.add(RAPIER.RigidBodyDesc.fixed().setTranslation(PX, 1.5, PZ), RAPIER.ColliderDesc.cylinder(1.5, PR), 'pillar');
+    settle(scene, 10);
+    let p = scene.player.position(), prev = { x: p.x, z: p.z }, hit = false;
+    for (let i = 0; i < 10; i++) {
+      scene.player.pushRaw({ x: 0, y: 0, z: -rng.range(1, 60) });
+      scene.phys.step();
+      p = scene.player.position();
+      const off0 = Math.abs(prev.x - PX), off1 = Math.abs(p.x - PX);
+      // Pass-through: crossed the pillar's z while still laterally overlapping it.
+      if (prev.z > PZ && p.z <= PZ && off1 < reach - 1e-3) { passes++; console.log(`# PILLAR PASS run ${r} step ${i} prev=${JSON.stringify(prev)} now=(${p.x},${p.z})`); break; }
+      const d = Math.hypot(p.x - PX, p.z - PZ);
+      maxPen = Math.max(maxPen, reach - d);
+      if (d < reach + 0.05) hit = true;
+      prev = { x: p.x, z: p.z };
+    }
+    if (hit) contacts++;
+    if (p.z < PZ) roundedOff++;
+    scene.phys.free();
+  }
+  console.log(`# pillar: ${RUNS} runs, contacts=${contacts}, slid round (legal)=${roundedOff}, pass-throughs=${passes}, max penetration=${maxPen.toFixed(4)} m`);
+  assert.equal(passes, 0);
 });
