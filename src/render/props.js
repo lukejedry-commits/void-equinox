@@ -7,7 +7,7 @@ import { addRim, chainCompile } from './rim.js';
 export const MOTE_COLOR = 0xfff2c8;   // angelic motes (Meridius). Reserved: puzzles may not use it.
 export const SMOKE_COLOR = 0x2a2420;  // -ius smoke
 export const EMBER = 0xff6a20;
-export const PUZZLE_EMISSIVE = 0x7fd8c4;
+export const PUZZLE_EMISSIVE = 0xff8a3a; // ember orange (fire-revealed); distinct from angelic white-gold and mote #fff2c8
 export const DECAY = { center: [0.9, -1.7], radius: 1.1, band: 0.3, sat: 0.25, value: 0.7, edge: 0x4a3410 };
 export const LAYOUT = {
   fire: [-1.8, 0.35, -2.6], landmarks: [[-0.4, -3.6], [-6.5, -4.5]], // second one is outside fire distance on purpose
@@ -78,7 +78,7 @@ export function createProps({ scene, preset }) {
   fire.position.set(...LAYOUT.fire); fire.name = 'fire-light'; root.add(fire);
   const coalMat = new THREE.MeshStandardMaterial({ color: 0x1a0d06, emissive: EMBER, emissiveIntensity: 0 });
   const coal = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.3, 8), coalMat); coal.position.set(LAYOUT.fire[0], 0.15, LAYOUT.fire[2]); coal.userData.dc = 'props act2: brazier'; root.add(coal);
-  // Puzzle landmarks: emissive only within the fire light's distance.
+  // Puzzle landmarks: emissive only within the fire light's distance. Emissive is never clamped under presence.
   const landmarks = LAYOUT.landmarks.map(([x, z]) => {
     const m = new THREE.MeshStandardMaterial({ color: 0x3c3c3c, roughness: 0.9, emissive: assertPuzzleEmissive(PUZZLE_EMISSIVE), emissiveIntensity: 0 });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 0.35), m); mesh.position.set(x, 0.55, z); mesh.userData.dc = 'props act2: puzzle landmarks'; mesh.castShadow = mesh.receiveShadow = true; root.add(mesh);
