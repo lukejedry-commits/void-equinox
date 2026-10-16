@@ -7,7 +7,8 @@ export function createPerf() {
   let visible = true, ft = 16.7;
   window.addEventListener('keydown', (e) => { if (e.code === 'Backquote') { visible = !visible; el.style.display = visible ? '' : 'none'; } });
   return {
-    update({ frameMs, physicsMs, steps, renderer, tier, auto }) {
+    get visible() { return visible; },
+    update({ frameMs, physicsMs, steps, renderer, tier, auto, gradeMs = null, gradeMode = '' }) {
       ft = ft * 0.9 + frameMs * 0.1;
       if (!visible) return;
       const r = renderer.info.render;
@@ -15,6 +16,7 @@ export function createPerf() {
         `frame   ${ft.toFixed(2)} ms (${(1000 / ft).toFixed(0)} fps)\n` +
         `physics ${physicsMs.toFixed(2)} ms  steps ${steps}\n` +
         `draws   ${r.calls}  tris ${r.triangles}\n` +
+        `grade ${gradeMs == null ? '-.--' : gradeMs.toFixed(2)} ms (${gradeMode})\n` +
         `tier    ${tier}${auto ? ' (auto)' : ''}`;
     },
   };

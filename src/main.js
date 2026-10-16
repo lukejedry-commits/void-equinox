@@ -10,6 +10,7 @@ import { createLoop } from './core/loop.js';
 import { createInput } from './core/input.js';
 import { createQuality, createLimiter } from './render/quality.js';
 import { createPerf } from './debug/perf.js';
+import { createGradeTimer } from './debug/gradetimer.js';
 import { createDrawCallProbe } from './debug/drawcalls.js';
 import { createTPSCamera } from './render/camera.js';
 import { addRim } from './render/rim.js';
@@ -94,6 +95,7 @@ const renderPass = new RenderPass(three, camera), outputPass = new OutputPass();
 composer.addPass(renderPass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.4, 0.85);
 composer.addPass(bloom); composer.addPass(outputPass); composer.addPass(lighting.grade);
+const gradeTimer = createGradeTimer({ renderer, composer, grade: lighting.grade });
 const drawProbe = createDrawCallProbe({ renderer, composer, passNames: new Map([[renderPass, 'main'], [bloom, 'bloom'], [outputPass, 'post: output (tone map)'], [lighting.grade, 'post: colour grade']]) });
 lighting.patchScene();
 
@@ -138,10 +140,11 @@ function frame(tMs) {
   clock += dt;
   zones.update(pm.position); lighting.update(dt);
   const w = lighting.weights(); decay.uDecayOn.value = w.decay; props.update(dt, w); standin.setCloakRimMin(w.cloakRimMin); tell.update(clock, tellGain());
+  gradeTimer.frame(dt, perf.visible);
   renderFrame();
   window.__drawCalls = renderer.info.render.calls;
   quality.frame(dt);
-  perf.update({ frameMs: dt * 1000, physicsMs: loop.stats.physicsMs, steps: loop.stats.stepsThisFrame, renderer, tier: preset.name, auto: quality.auto });
+  perf.update({ frameMs: dt * 1000, physicsMs: loop.stats.physicsMs, steps: loop.stats.stepsThisFrame, renderer, tier: preset.name, auto: quality.auto, gradeMs: gradeTimer.ms, gradeMode: gradeTimer.mode });
 }
 // Tells stay readable through the Meridius presence pulse (exposure 1.6, flat light).
 const TELL_PRESENCE_GAIN = 2.0;
@@ -153,5 +156,6 @@ function renderFrame() {
 // Readability check (headless): see render/readability.js and scripts/readability-check.mjs.
 window.__readability = (opts) => measureReadability({ renderer, standin, tellGain, bloom, scene: three, camera, lighting, tell, props, decay, renderFrame, ...opts });
 window.__drawBreakdown = () => drawProbe.capture(renderFrame);
+window.__gradeTimer = gradeTimer;
 requestAnimationFrame(frame);
 window.__ready = true;
