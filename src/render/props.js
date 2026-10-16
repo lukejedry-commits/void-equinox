@@ -36,7 +36,8 @@ function points(n, color, { size, additive, opacity, seed, spread, h }) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({ color, size, map: softDot(), transparent: true, opacity, depthWrite: false,
     blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, sizeAttenuation: true });
-  const p = new THREE.Points(geo, mat); p.frustumCulled = false; return p;
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, h / 2, 0), Math.hypot(spread, h) * 0.75 + 1); // covers drift; enables frustum culling
+  return new THREE.Points(geo, mat);
 }
 
 // Ground decay decal: patches the ground material (25% sat, 70% value, dark-ochre edge band).
@@ -133,11 +134,14 @@ export function createProps({ scene, preset }) {
     update(dt, w) {
       time += dt;
       coalMat.emissiveIntensity = 2.5 * w.fire; coal.visible = w.fire > 0.01;
-      for (const l of landmarks) l.m.emissiveIntensity = l.inRange ? 0.9 * w.fire : 0;
+      for (const l of landmarks) { l.m.emissiveIntensity = l.inRange ? 0.9 * w.fire : 0; l.mesh.visible = w.fire > 0.01; } // Act 2 props: skipped elsewhere
       door.visible = mound.visible = w.winter > 0.01;
       frost.rimStrength.value = 0.4 * w.winter;
-      motes.material.opacity = 0.15 + 0.75 * w.presence; drift(motes, { v: 0.35, dt }, 3);
-      smoke.material.opacity = 0.35 * w.fire; drift(smoke, { v: -0.25, dt }, 2.5);
+      // Skip particle systems at zero opacity (frustum culling handles out-of-view).
+      motes.material.opacity = 0.15 + 0.75 * w.presence; motes.visible = motes.material.opacity > 0.001;
+      smoke.material.opacity = 0.35 * w.fire; smoke.visible = smoke.material.opacity > 0.001;
+      if (motes.visible) drift(motes, { v: 0.35, dt }, 3);
+      if (smoke.visible) drift(smoke, { v: -0.25, dt }, 2.5);
     },
   };
 }
