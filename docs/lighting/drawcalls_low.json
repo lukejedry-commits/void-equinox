@@ -1,0 +1,136 @@
+[
+  {
+    "act": "act1",
+    "presence": false,
+    "quality": "low",
+    "total": 15,
+    "sum": 15,
+    "systems": {
+      "shadow pass: main meshes: static merged (ground+wall)": 1,
+      "shadow pass: main meshes: boxes (instanced)": 1,
+      "shadow pass: stand-in parts": 1,
+      "shadow pass: main meshes: lock-on dummy": 1,
+      "main: sky (background)": 1,
+      "main: main meshes: static merged (ground+wall)": 1,
+      "main: main meshes: boxes (instanced)": 1,
+      "main: main meshes: lock-on dummy": 1,
+      "main: particles: Meridius motes": 1,
+      "main: stand-in parts": 4,
+      "post: output (tone map)": 1,
+      "post: colour grade": 1
+    }
+  },
+  {
+    "act": "act1_arena",
+    "presence": false,
+    "quality": "low",
+    "total": 15,
+    "sum": 15,
+    "systems": {
+      "shadow pass: main meshes: static merged (ground+wall)": 1,
+      "shadow pass: main meshes: boxes (instanced)": 1,
+      "shadow pass: stand-in parts": 1,
+      "shadow pass: main meshes: lock-on dummy": 1,
+      "main: sky (background)": 1,
+      "main: main meshes: static merged (ground+wall)": 1,
+      "main: main meshes: boxes (instanced)": 1,
+      "main: main meshes: lock-on dummy": 1,
+      "main: particles: Meridius motes": 1,
+      "main: stand-in parts": 4,
+      "post: output (tone map)": 1,
+      "post: colour grade": 1
+    }
+  },
+  {
+    "act": "act2",
+    "presence": false,
+    "quality": "low",
+    "total": 17,
+    "sum": 17,
+    "systems": {
+      "shadow pass: main meshes: static merged (ground+wall)": 1,
+      "shadow pass: main meshes: boxes (instanced)": 1,
+      "shadow pass: stand-in parts": 1,
+      "shadow pass: main meshes: lock-on dummy": 1,
+      "main: props act2: brazier": 1,
+      "main: props act2: puzzle landmarks": 1,
+      "main: main meshes: static merged (ground+wall)": 1,
+      "main: main meshes: boxes (instanced)": 1,
+      "main: main meshes: lock-on dummy": 1,
+      "main: particles: Meridius motes": 1,
+      "main: particles: -ius smoke": 1,
+      "main: stand-in parts": 4,
+      "post: output (tone map)": 1,
+      "post: colour grade": 1
+    }
+  },
+  {
+    "act": "act2_boss",
+    "presence": false,
+    "quality": "low",
+    "total": 17,
+    "sum": 17,
+    "systems": {
+      "shadow pass: main meshes: static merged (ground+wall)": 1,
+      "shadow pass: main meshes: boxes (instanced)": 1,
+      "shadow pass: stand-in parts": 1,
+      "shadow pass: main meshes: lock-on dummy": 1,
+      "main: props act2: brazier": 1,
+      "main: props act2: puzzle landmarks": 1,
+      "main: main meshes: static merged (ground+wall)": 1,
+      "main: main meshes: boxes (instanced)": 1,
+      "main: main meshes: lock-on dummy": 1,
+      "main: particles: Meridius motes": 1,
+      "main: particles: -ius smoke": 1,
+      "main: stand-in parts": 4,
+      "post: output (tone map)": 1,
+      "post: colour grade": 1
+    }
+  },
+  {
+    "act": "act3",
+    "presence": false,
+    "quality": "low",
+    "total": 21,
+    "sum": 21,
+    "systems": {
+      "shadow pass: props act3: winter door": 3,
+      "shadow pass: main meshes: static merged (ground+wall)": 1,
+      "shadow pass: main meshes: boxes (instanced)": 1,
+      "shadow pass: stand-in parts": 1,
+      "shadow pass: main meshes: lock-on dummy": 1,
+      "main: props act3: winter door": 3,
+      "main: props act3: frost mound": 1,
+      "main: main meshes: static merged (ground+wall)": 1,
+      "main: main meshes: boxes (instanced)": 1,
+      "main: main meshes: lock-on dummy": 1,
+      "main: particles: Meridius motes": 1,
+      "main: stand-in parts": 4,
+      "post: output (tone map)": 1,
+      "post: colour grade": 1
+    }
+  },
+  {
+    "act": "act2",
+    "presence": true,
+    "quality": "low",
+    "total": 17,
+    "sum": 17,
+    "systems": {
+      "shadow pass: main meshes: static merged (ground+wall)": 1,
+      "shadow pass: main meshes: boxes (instanced)": 1,
+      "shadow pass: stand-in parts": 1,
+      "shadow pass: main meshes: lock-on dummy": 1,
+      "main: props act2: brazier": 1,
+      "main: props act2: puzzle landmarks": 1,
+      "main: main meshes: static merged (ground+wall)": 1,
+      "main: main meshes: boxes (instanced)": 1,
+      "main: main meshes: lock-on dummy": 1,
+      "main: particles: Meridius motes": 1,
+      "main: particles: -ius smoke": 1,
+      "main: stand-in parts": 4,
+      "post: output (tone map)": 1,
+      "post: colour grade": 1
+    }
+  }
+]
