@@ -104,6 +104,13 @@ export function createStandin() {
     add(el, new THREE.SphereGeometry(0.022, 8, 6), emberMat(), -s * 0.02, -0.5, -0.025); // palm ember
     arms.push({ sh, el, s });
   }
+  // Ember leak: faint additive bands where inner fire escapes the cloth (hood inner edge,
+  // hem underside) so the fire reads from behind. Scaled by `recovery` in applyRecovery().
+  const leakMat = new THREE.MeshBasicMaterial({ color: STANDIN.ember, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true, toneMapped: true });
+  const hoodLeak = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.018, 6, 28), leakMat);
+  hoodLeak.rotation.x = Math.PI / 2; hoodLeak.position.set(0, -0.02, 0.02); hoodLeak.name = 'ember-leak-hood'; head.add(hoodLeak);
+  const hemLeak = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.62, 40, 1), leakMat);
+  hemLeak.rotation.x = -Math.PI / 2; hemLeak.position.set(0, 0.04, 0.06); hemLeak.name = 'ember-leak-hem'; rig.add(hemLeak);
   const glow = new THREE.PointLight(STANDIN.ember, 0.8, 2.2); glow.position.set(0, 0.42, -0.3); upper.add(glow);
 
   let phase = 0, lean = 0, lunge = 0;
@@ -111,6 +118,7 @@ export function createStandin() {
     const k = 0.35 + 0.65 * Math.min(1, Math.max(0, recovery.value));
     for (const m of emberMats) m.emissiveIntensity = 3 * k;
     glow.intensity = 1.2 * k;
+    leakMat.opacity = 0.32 * k; // low intensity: a hint of fire, not a lamp
   }
   applyRecovery();
 
@@ -135,7 +143,7 @@ export function createStandin() {
         a.sh.rotation.x = 0.15 + swing * (1 - lunge) + lunge * 1.1; // lunge: arms thrown back
         a.el.rotation.x = -0.25 - lunge * 0.3;
       }
-      cloak.scale.set(1, 1, 1 + 0.12 * (s01 + lunge));
+      cloak.scale.set(1, 1, 1 + 0.12 * (s01 + lunge)); hemLeak.scale.set(1, 1 + 0.12 * (s01 + lunge), 1);
     },
   };
 }
