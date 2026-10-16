@@ -82,7 +82,7 @@ export function createProps({ scene, preset }) {
   // Puzzle landmarks: emissive only within the fire light's distance. Emissive is never clamped under presence.
   const landmarks = LAYOUT.landmarks.map(([x, z]) => {
     const m = new THREE.MeshStandardMaterial({ color: 0x3c3c3c, roughness: 0.9, emissive: assertPuzzleEmissive(PUZZLE_EMISSIVE), emissiveIntensity: 0 });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 0.35), m); mesh.position.set(x, 0.55, z); mesh.userData.dc = 'props act2: puzzle landmarks'; mesh.castShadow = mesh.receiveShadow = true; root.add(mesh);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 0.35), m); mesh.position.set(x, 0.55, z); mesh.userData.dc = 'props act2: puzzle landmarks'; mesh.receiveShadow = true; root.add(mesh); // no shadow casting (draw calls)
     const inRange = Math.hypot(x - LAYOUT.fire[0], z - LAYOUT.fire[2]) <= FIRE.distance;
     return { mesh, m, inRange };
   });
