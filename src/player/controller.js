@@ -10,7 +10,17 @@ export const PLAYER_TUNING = {
   baseTopSpeed: 6, baseAccel: 40, baseTurnRate: 14, // TODO(Mechanics)
   dodgeSpeed: 14, dodgeSteps: 12, dodgeCooldownSteps: 30, // TODO(Mechanics)
   gravity: -20,                         // TODO(Mechanics)
+  knockbackDamping: 6,                  // 1/s exponential decay of external velocity. TODO(Mechanics)
 };
+
+// Max horizontal speed any velocity state may hold: the per-step displacement cap
+// (MAX_SUBSTEPS * 0.5 * radius = 1.4 m) over one fixed step (1/60 s) = 84 m/s.
+export const MAX_H_SPEED = 1.4 / (1 / 60);
+function clampH(v, max = MAX_H_SPEED) {
+  const h = Math.hypot(v.x, v.z);
+  if (h > max) { const k = max / h; v.x *= k; v.z *= k; }
+  return v;
+}
 
 // heaviness 0 (light) .. 1 (heavy) scales accel/turn/top speed together.
 export function derivedStats(heaviness, T = PLAYER_TUNING) {
@@ -98,7 +108,15 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     id, heaviness, vel: { x: 0, y: 0, z: 0 }, yaw: 0,
     dodgeLeft: 0, dodgeCd: 0, dodgeDir: { x: 0, z: -1 }, grounded: false,
     dodgeTravel: 0, lastDodgeDistance: 0,
+    ext: { x: 0, z: 0 }, // knockback / external push velocity (m/s), |ext| <= MAX_H_SPEED
   };
+
+  // Knockback: added to the stored external velocity, clamped AT STORE TIME so no
+  // excess persists into later steps.
+  function applyKnockback(v) {
+    s.ext.x += v.x; s.ext.z += v.z;
+    clampH(s.ext);
+  }
 
   // Called once per fixed step, before phys.step().
   function update(input, dt) {
@@ -135,6 +153,15 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     // drove the capsule into the KCC contact-offset skin, and the next step's
     // computeColliderMovement spent itself on depenetration and returned zero
     // horizontal movement (that was the dodge step that did not move).
+    clampH(s.vel); // carried velocity never exceeds the cap
+    if (s.ext.x !== 0 || s.ext.z !== 0) {
+      clampH(s.ext);
+      dx += s.ext.x; dz += s.ext.z;
+      const c = clampH({ x: dx, z: dz }); dx = c.x; dz = c.z;
+      const k = Math.max(0, 1 - T.knockbackDamping * dt);
+      s.ext.x *= k; s.ext.z *= k;
+      if (Math.hypot(s.ext.x, s.ext.z) < 1e-3) { s.ext.x = 0; s.ext.z = 0; }
+    }
     s.vel.y = s.grounded ? 0 : s.vel.y + T.gravity * dt; // TODO(Mechanics)
 
     const desired = { x: dx * dt, y: s.vel.y * dt, z: dz * dt };
@@ -150,5 +177,5 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   // Test hook: arbitrary desired translation, still routed through the KCC.
   function pushRaw(desired) { return move(desired); }
 
-  return { id, state: s, update, pushRaw, subSteps: (d) => nSub(clampDesired(d)), moveStats: stats, MAX_SUBSTEPS, maxSub, position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
+  return { id, state: s, update, pushRaw, applyKnockback, MAX_H_SPEED, subSteps: (d) => nSub(clampDesired(d)), moveStats: stats, MAX_SUBSTEPS, maxSub, position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
 }
