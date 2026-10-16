@@ -5,7 +5,10 @@ import { mulberry32 } from '../core/rng.js';
 
 export const WALL = { x: 4, halfThickness: 0.05, halfHeight: 1.5, halfDepth: 4 };
 
-export function buildScene({ seed = 1, player = {}, boxes: withBoxes = true } = {}) {
+// Lock-on dummy target (static capsule). Opt-in so existing test scenes are unchanged.
+export const DUMMY = { x: 2.4, z: -3.2, radius: 0.35, halfHeight: 0.55 }; // TODO(Mechanics)
+
+export function buildScene({ seed = 1, player = {}, boxes: withBoxes = true, dummy: withDummy = false } = {}) {
   const phys = createPhysicsWorld();
   const { RAPIER } = phys;
   const rng = mulberry32(seed);
@@ -24,7 +27,13 @@ export function buildScene({ seed = 1, player = {}, boxes: withBoxes = true } = 
     boxes.push({ id, size: [s * 2, s * 2, s * 2] });
   }
   const p = createPlayer(phys, { x: 0, y: 1.0, z: 0, ...player });
-  return { phys, player: p, statics, boxes };
+  let dummy = null;
+  if (withDummy) {
+    const y = DUMMY.halfHeight + DUMMY.radius;
+    dummy = { id: phys.add(RAPIER.RigidBodyDesc.fixed().setTranslation(DUMMY.x, y, DUMMY.z),
+      RAPIER.ColliderDesc.capsule(DUMMY.halfHeight, DUMMY.radius), 'dummy'), ...DUMMY, y };
+  }
+  return { phys, player: p, statics, boxes, dummy };
 }
 
 // One deterministic fixed step: input applied, then world stepped.

@@ -1,3 +1,4 @@
+import { yawFromQ } from '../core/input.js';
 // Kinematic capsule driven by Rapier KinematicCharacterController.
 // All motion goes through computeColliderMovement -> setNextKinematicTranslation.
 
@@ -141,6 +142,12 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
     let ix = input.mx, iz = input.mz;
     const len = Math.hypot(ix, iz);
     if (len > 1) { ix /= len; iz /= len; }
+    // Camera-relative movement: rotate the input by the recorded, quantized camera
+    // yaw (yaw 0 / absent leaves the vector untouched, bit for bit).
+    if (input.yawQ) {
+      const a = yawFromQ(input.yawQ), c = Math.cos(a), sn = Math.sin(a);
+      const rx = ix * c + iz * sn, rz = -ix * sn + iz * c; ix = rx; iz = rz;
+    }
 
     if (s.dodgeCd > 0) s.dodgeCd--;
     if (input.dodge && s.dodgeLeft === 0 && s.dodgeCd === 0) {

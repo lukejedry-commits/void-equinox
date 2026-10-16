@@ -1,8 +1,17 @@
 // Input sampled once per physics step, applied in fixed order; recordable & replayable.
-// A frame of input: { mx, mz, dodge } (move axes in -1..1, dodge edge-triggered bool).
-export function emptyInput() { return { mx: 0, mz: 0, dodge: false }; }
+// A frame of input: { mx, mz, dodge, yawQ } (move axes in -1..1, dodge edge-triggered
+// bool, yawQ = camera yaw quantized to YAW_Q_STEPS per turn; movement is rotated by it).
+// yawQ is recorded with every step, so replays use the recorded yaw, never the live camera.
+export const YAW_Q_STEPS = 65536;
+export function quantizeYaw(yaw) {
+  const q = Math.round((yaw / (2 * Math.PI)) * YAW_Q_STEPS) % YAW_Q_STEPS;
+  return q < 0 ? q + YAW_Q_STEPS : q;
+}
+export function yawFromQ(q) { return (q * 2 * Math.PI) / YAW_Q_STEPS; }
+export function emptyInput() { return { mx: 0, mz: 0, dodge: false, yawQ: 0 }; }
 
-export function createInput() {
+// getYaw: optional render-side provider of the live camera yaw (radians).
+export function createInput({ getYaw = null } = {}) {
   const held = new Set();
   let dodgeLatched = false;
   let source = null; // replay log if set
@@ -11,7 +20,7 @@ export function createInput() {
   function sampleLive() {
     const mx = (held.has('KeyD') ? 1 : 0) - (held.has('KeyA') ? 1 : 0);
     const mz = (held.has('KeyS') ? 1 : 0) - (held.has('KeyW') ? 1 : 0);
-    const f = { mx, mz, dodge: dodgeLatched };
+    const f = { mx, mz, dodge: dodgeLatched, yawQ: getYaw ? quantizeYaw(getYaw()) : 0 };
     dodgeLatched = false; // edge consumed by exactly one step
     return f;
   }
@@ -37,6 +46,7 @@ export function createInput() {
     startRecording() { recording = []; },
     stopRecording() { const r = recording; recording = null; return r; },
     replay(log) { source = log; },
+    setYawProvider(fn) { getYaw = fn; },
     stopReplay() { source = null; },
   };
 }

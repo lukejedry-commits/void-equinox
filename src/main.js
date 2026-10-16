@@ -10,10 +10,12 @@ import { createLoop } from './core/loop.js';
 import { createInput } from './core/input.js';
 import { createQuality, createLimiter } from './render/quality.js';
 import { createPerf } from './debug/perf.js';
+import { createTPSCamera } from './render/camera.js';
+import { addRim } from './render/rim.js';
 import './style.css';
 
 await initRapier();
-const scene = buildScene({ seed: 1337 });
+const scene = buildScene({ seed: 1337, dummy: true });
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.shadowMap.enabled = true;
@@ -53,6 +55,18 @@ const nose = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.3), mats.wall);
 nose.position.set(0, 0.4, -0.35); pm.add(nose);
 three.add(pm); sync.link(scene.player.id, pm);
 
+// Lock-on dummy: static capsule; locked state shown as a faint cold-white fresnel rim.
+const dummyMat = new THREE.MeshStandardMaterial({ color: 0x5a5550, roughness: 0.9 });
+const dummyRim = addRim(dummyMat, { color: 0xa8c8ff, strength: 0, power: 2.5 });
+const dummyMesh = new THREE.Mesh(new THREE.CapsuleGeometry(scene.dummy.radius, scene.dummy.halfHeight * 2, 6, 12), dummyMat);
+dummyMesh.castShadow = dummyMesh.receiveShadow = true; three.add(dummyMesh); sync.link(scene.dummy.id, dummyMesh);
+const tps = createTPSCamera({ camera, phys: scene.phys, targets: [{
+  position: () => ({ x: scene.dummy.x, y: scene.dummy.y, z: scene.dummy.z }),
+  onLock: (on) => { dummyRim.rimStrength.value = on ? 0.9 : 0; },
+}], onFade: (o) => window.__onCamFade?.(o) });
+tps.attach(renderer.domElement);
+window.__tps = tps;
+
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(three, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.4, 0.85);
@@ -77,12 +91,11 @@ sel.addEventListener('change', () => quality.setOverride(sel.value));
 quality.init();
 addEventListener('resize', resize);
 
-const input = createInput(); input.attach(window);
+const input = createInput({ getYaw: () => tps.yaw }); input.attach(window);
 const perf = createPerf();
 const loop = createLoop({ step: (dt, tick) => stepScene(scene, input.sample(tick), dt) });
 const limiter = createLimiter();
 let lastT = null;
-const camTarget = new THREE.Vector3();
 
 function frame(tMs) {
   requestAnimationFrame(frame);
@@ -90,9 +103,7 @@ function frame(tMs) {
   const dt = lastT === null ? 0 : (tMs - lastT) / 1000; lastT = tMs;
   const alpha = loop.advance(dt);
   sync.apply(alpha); // the only place mesh transforms are written
-  camTarget.copy(pm.position);
-  camera.position.set(camTarget.x + 6, camTarget.y + 7, camTarget.z + 9);
-  camera.lookAt(camTarget);
+  tps.update(dt, pm.position); // render-side only; sim sees yaw via recorded input.yawQ
   renderer.info.reset(); renderer.info.autoReset = false;
   preset.bloom ? composer.render() : renderer.render(three, camera);
   quality.frame(dt);
