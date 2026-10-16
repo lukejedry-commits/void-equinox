@@ -49,12 +49,18 @@ test(`dodge into thin wall x${RUNS}: zero tunnelling`, async () => {
   assert.ok(pa.stat <= OFFSET, `static penetration ${pa.stat} > ${OFFSET}`);
 });
 
-test(`strong push into thin wall x${RUNS}: zero tunnelling`, async () => {
+// 60 m strong-push stress: 100 seeds in `npm test`, STRESS_SEEDS (e.g. 1000) nightly.
+const STRESS = Number(process.env.STRESS_SEEDS || 100);
+test(`strong push (<=60 m/step) into thin wall x${STRESS}: zero tunnelling, clamp holds`, async () => {
   await initRapier();
-  const { tunnels, hits, maxX, maxY, maxPen, above, wallTop, pa } = strongPush({ runs: RUNS });
+  const { cl, tunnels, hits, maxX, maxY, maxPen, above, wallTop, pa } = strongPush({ runs: STRESS });
+  const RUNS = STRESS;
   console.log(`# push: max centre y=${maxY.toFixed(4)} (wall top ${wallTop}), runs ending above wall top=${above}, max penetration into face=${maxPen.toFixed(4)} m`);
   console.log(`# push: ${RUNS} runs, wall contacts=${hits}, tunnels=${tunnels}, max x within wall span=${maxX.toFixed(4)}`);
   console.log(`# push: max static penetration=${pa.stat.toFixed(4)} m (${pa.statAt}), max dynamic-box penetration=${pa.dyn.toFixed(4)} m (not asserted)`);
+  console.log(`# push clamp: steps=${cl.steps}, clamped=${cl.clamped}, max sub-moves/step=${cl.maxN}, max sub-move=${cl.maxSubLen.toFixed(5)} m, max horizontal request=${cl.maxH.toFixed(5)} m, violations=${cl.violations}`);
+  assert.equal(cl.violations, 0);
+  assert.ok(cl.maxN <= 8);
   assert.equal(tunnels, 0);
   assert.equal(above, 0);
   assert.ok(maxY <= wallTop);

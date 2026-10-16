@@ -47,10 +47,27 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   const maxSub = 0.5 * T.radius;
   let lastGrounded = false;
   let stallRetries = 0;
-  function move(desired) {
-    const len = Math.hypot(desired.x, desired.y, desired.z);
-    const n = Math.max(1, Math.ceil(len / maxSub));
+  // Perf cap: at most MAX_SUBSTEPS sub-moves per step. The desired horizontal
+  // translation is clamped to MAX_SUBSTEPS * maxSub (= 1.4 m) and the excess is
+  // dropped, so a sub-move never exceeds maxSub. (If a vertical component would
+  // still push |d| over the cap, the whole vector is scaled to the cap.)
+  const MAX_SUBSTEPS = 8, maxStep = MAX_SUBSTEPS * maxSub;
+  function clampDesired(d) {
+    let { x, y, z } = d;
+    const h = Math.hypot(x, z);
+    if (h > maxStep) { const k = maxStep / h; x *= k; z *= k; }
+    const l = Math.hypot(x, y, z);
+    if (l > maxStep) { const k = maxStep / l; x *= k; y *= k; z *= k; }
+    return { x, y, z };
+  }
+  const nSub = (d) => Math.min(MAX_SUBSTEPS, Math.max(1, Math.ceil(Math.hypot(d.x, d.y, d.z) / maxSub)));
+  const stats = { lastN: 0, lastSubLen: 0, lastClamped: { x: 0, y: 0, z: 0 }, clampedSteps: 0 };
+  function move(desiredIn) {
+    const desired = clampDesired(desiredIn);
+    if (desired.x !== desiredIn.x || desired.y !== desiredIn.y || desired.z !== desiredIn.z) stats.clampedSteps++;
+    const n = nSub(desired);
     const sd = { x: desired.x / n, y: desired.y / n, z: desired.z / n };
+    stats.lastN = n; stats.lastSubLen = Math.hypot(sd.x, sd.y, sd.z); stats.lastClamped = desired;
     const t0 = entry.body.translation();
     const total = { x: 0, y: 0, z: 0 };
     let grounded = false;
@@ -133,5 +150,5 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   // Test hook: arbitrary desired translation, still routed through the KCC.
   function pushRaw(desired) { return move(desired); }
 
-  return { id, state: s, update, pushRaw, subSteps: (d) => Math.max(1, Math.ceil(Math.hypot(d.x, d.y, d.z) / maxSub)), position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
+  return { id, state: s, update, pushRaw, subSteps: (d) => nSub(clampDesired(d)), moveStats: stats, MAX_SUBSTEPS, maxSub, position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
 }

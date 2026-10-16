@@ -7,7 +7,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test tests/",
-    "test:pen-isolation": "node scripts/pen-isolation.js"
+    "test:pen-isolation": "node scripts/pen-isolation.js",
+    "test:nightly": "STRESS_SEEDS=${STRESS_SEEDS:-1000} node --test tests/"
   },
   "keywords": [],
   "author": "",

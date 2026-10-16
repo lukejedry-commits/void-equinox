@@ -19,6 +19,7 @@ export function strongPush({ runs = 1000, boxes = true, impulses = true, log = t
   const rng = mulberry32(999);
   let tunnels = 0, hits = 0, maxX = -Infinity, maxY = -Infinity, maxPen = 0, above = 0;
   const pa = { stat: 0, dyn: 0, statAt: '' };
+  const cl = { maxN: 0, maxSubLen: 0, maxH: 0, violations: 0, clamped: 0, steps: 0 };
   const wallTop = 2 * WALL.halfHeight;
   for (let r = 0; r < runs; r++) {
     const scene = buildScene({ seed: r, boxes, player: { x: rng.range(face - 3.5, face - 0.4), z: rng.range(-2.5, 2.5) } });
@@ -30,6 +31,9 @@ export function strongPush({ runs = 1000, boxes = true, impulses = true, log = t
       scene.player.pushRaw({ x: rng.range(1, 60), y: 0, z: rng.range(-0.05, 0.05) });
       scene.phys.step();
       trackPen(pa, scene, `run ${r} step ${i}`);
+      { const ms = scene.player.moveStats, c = ms.lastClamped, h = Math.hypot(c.x, c.z);
+        cl.steps++; cl.maxN = Math.max(cl.maxN, ms.lastN); cl.maxSubLen = Math.max(cl.maxSubLen, ms.lastSubLen); cl.maxH = Math.max(cl.maxH, h);
+        if (ms.lastN > 8 || ms.lastSubLen > 0.175 + 1e-9 || h > 1.4 + 1e-9) { cl.violations++; if (log) console.log(`# CLAMP VIOLATION run ${r} step ${i} n=${ms.lastN} sub=${ms.lastSubLen} h=${h}`); } }
       const p = scene.player.position(), x = p.x;
       if (through(px, x, p.z)) { tunnels++; if (log) console.log(`# TUNNEL run ${r} step ${i} px=${px} x=${x} z=${p.z}`); break; }
       if (Math.abs(p.z) < WALL.halfDepth) maxX = Math.max(maxX, x);
@@ -39,8 +43,9 @@ export function strongPush({ runs = 1000, boxes = true, impulses = true, log = t
       if (touched(x) && !hit) { hit = true; hits++; }
       px = x;
     }
+    cl.clamped += scene.player.moveStats.clampedSteps;
     scene.phys.free();
   }
-  return { tunnels, hits, maxX, maxY, maxPen, above, wallTop, pa };
+  return { cl, tunnels, hits, maxX, maxY, maxPen, above, wallTop, pa };
 }
 
