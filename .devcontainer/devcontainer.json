@@ -1,0 +1,8 @@
+{
+  "name": "Void Equinox",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "postCreateCommand": "npm ci",
+  "postAttachCommand": "npm run dev",
+  "forwardPorts": [5173],
+  "portsAttributes": { "5173": { "label": "Vite", "onAutoForward": "openBrowser" } }
+}
