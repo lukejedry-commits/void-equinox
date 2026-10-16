@@ -20,6 +20,7 @@ import { createLighting, createZoneTriggers, PROFILES } from './render/lighting.
 import { createTell } from './render/tells.js';
 import { createProps, addDecayToGround } from './render/props.js';
 import { measureReadability } from './render/readability.js';
+import { setBloomMips } from './render/bloom.js';
 import './style.css';
 
 await initRapier();
@@ -109,7 +110,7 @@ function resize() {
 const quality = createQuality({ onChange: (p) => {
   preset = p;
   sun.shadow.mapSize.set(p.shadowMapSize, p.shadowMapSize); sun.shadow.map?.dispose(); sun.shadow.map = null;
-  bloom.enabled = p.bloom; resize();
+  bloom.enabled = p.bloom; if (p.bloom) setBloomMips(bloom, p.bloomMips); resize();
   // Low allows a single point light: the act fire keeps it, the stand-in chest glow goes.
   standin.object.traverse((o) => { if (o.isPointLight) o.visible = p.pointLights > 1; });
   document.getElementById('quality').value = quality.auto ? 'auto' : quality.tier;
