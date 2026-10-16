@@ -49,4 +49,16 @@ export const CAMERA = {
   smoothingSec: 0.08,                 // yaw/pitch smoothing time constant
 };
 
-export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL, KNOCKBACK, CAMERA };
+// Touch controls (shown on touch devices only). Sizes in CSS px at 1x density.
+export const TOUCH = {
+  stick: { areaFrac: 0.45, radiusPx: 120, quantBits: 16, deadZone: 0.12, outerSat: 0.95, curveExp: 1.6, runAbove: 0.85 },
+  look: { degPerPx: 0.25, smoothingSec: 0.05, swipePx: 60, swipeMaxSec: 0.3 }, // no acceleration
+  buttons: {
+    gapPx: 12, marginPx: 24, minTargetPx: 48,
+    dodge: 88, light: 76, heavy: 64, fire: 64, lock: 56,
+  },
+  dodgeHoldSprintSec: 0.25,           // hold dodge longer than this -> sprint
+  heavyChargeSec: 0.6,                // hold heavy this long -> charged heavy
+};
+
+export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL, KNOCKBACK, CAMERA, TOUCH };

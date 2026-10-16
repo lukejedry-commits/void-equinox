@@ -171,6 +171,26 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
     // Programmatic orbit (tests / scripted shots).
     orbit(dYaw, dPitch = 0) { if (!st.lock) { st.tYaw += dYaw; st.tPitch += dPitch; } },
     setYaw(y, p = st.pitch) { st.yaw = st.tYaw = y; st.pitch = st.tPitch = p; },
+    // Direct look (touch drag; already smoothed by the caller): no camera smoothing on top.
+    turn(dYaw, dPitch = 0) {
+      if (st.lock) return;
+      st.yaw += dYaw; st.tYaw = st.yaw;
+      st.pitch = Math.min(T.pitchMaxDeg * D, Math.max(T.pitchMinDeg * D, st.pitch + dPitch)); st.tPitch = st.pitch;
+    },
+    // Switch lock target to the nearest other target on the given screen side (dir -1 left, +1 right).
+    switchTarget(dir) {
+      if (!st.lock) return false;
+      const sy = Math.sin(st.yaw), cy = Math.cos(st.yaw); let best = null, bd = Infinity;
+      for (const t of targets) {
+        if (t === st.lock) continue;
+        const q = t.position(), dx = q.x - pivot.x, dz = q.z - pivot.z, d = Math.hypot(dx, dz);
+        if (d > T.lockRange) continue;
+        const side = dx * cy - dz * sy; // camera-right component
+        if (Math.sign(side) === Math.sign(dir) && d < bd) { bd = d; best = t; }
+      }
+      if (best) setLock(best);
+      return !!best;
+    },
     get locked() { return st.lock; },
     get losLost() { return st.losLost || 0; },
     get framing() { return { fov: st.fov, distance: st.baseDist, portrait: camera.aspect < 1 }; },

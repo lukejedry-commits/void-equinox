@@ -10,6 +10,7 @@ import { createLoop } from './core/loop.js';
 import { createInput } from './core/input.js';
 import { createQuality, createLimiter } from './render/quality.js';
 import { createPerf } from './debug/perf.js';
+import { createTouchControls } from './ui/touch.js';
 import { createGradeTimer } from './debug/gradetimer.js';
 import { createDrawCallProbe } from './debug/drawcalls.js';
 import { createTPSCamera } from './render/camera.js';
@@ -122,6 +123,7 @@ quality.init();
 addEventListener('resize', resize);
 
 const input = createInput({ getYaw: () => tps.yaw }); input.attach(window);
+const touchUI = createTouchControls({ input, camera: tps }); // null on non-touch devices
 const perf = createPerf();
 const loop = createLoop({ step: (dt, tick) => stepScene(scene, input.sample(tick), dt) });
 const limiter = createLimiter();
@@ -138,6 +140,7 @@ function frame(tMs) {
   const sp = dt > 0 ? Math.hypot(pm.position.x - lastPos.x, pm.position.z - lastPos.z) / dt : 0;
   lastPos.copy(pm.position);
   standin.update(dt, { speed: sp, dodging: scene.player.state.dodgeLeft > 0 });
+  touchUI?.update(dt);
   tps.update(dt, pm.position); // render-side only; sim sees yaw via recorded input.yawQ
   clock += dt;
   zones.update(pm.position); lighting.update(dt);

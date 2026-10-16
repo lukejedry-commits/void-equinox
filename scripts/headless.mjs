@@ -9,8 +9,8 @@ export async function withPage(fn) {
   const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome', headless: true,
     args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,720'] });
   try {
-    const open = async (query, quality, settleMs = 3500) => {
-      const page = await browser.newPage(); await page.setViewport({ width: 1280, height: 720 });
+    const open = async (query, quality, settleMs = 3500, viewport = { width: 1280, height: 720 }) => {
+      const page = await browser.newPage(); await page.setViewport(viewport);
       page.on('pageerror', (e) => console.error('pageerror:', e.message));
       await page.evaluateOnNewDocument((q) => localStorage.setItem('voidEquinox.quality', q), quality);
       await page.goto(`${base}?${query}`, { waitUntil: 'load' });
