@@ -9,17 +9,19 @@ export const BLEND_SEC = 3;
 export const PRESENCE = { rampIn: 1.5, release: 3, exposure: 1.6, saturation: 0.3, flat: 0xf4f1e6, fog: 0xc4c0b4, fogScale: 0.7, hemiInt: 0.7, keyInt: 0.1 };
 // PRESENCE.hemiInt: hemisphere fill target under presence; with ground colour -> flat this
 // makes box undersides / contact areas flat and pale instead of the darkest pixels.
+// Act 1 sky: vertical gradient background (horizon -> zenith), weighted by profile.skyGrad.
+export const SKY_GRADIENT = { horizon: 0xe8b878, zenith: 0x9a6a48, rows: 64, zenithDeg: 20 }; // zenith colour reached at 20 deg elevation (top of the gameplay view)
 export const HEIGHT_FOG_K = 0.15;           // density * exp(-height * 0.15)
 export const FIRE = { color: 0xff8a3a, intensity: 3, distance: 4, decay: 2, fogScale: 0.3 };
 
 // cloakRimMin: floor of the stand-in cloak fresnel rim (0.35 in Act 2 dusk, 0.15 elsewhere).
 // sunDeg: elevation; weights act1/act2/act3 drive act-specific props (decal, fire, winter).
-const P = (o) => ({ exposure: 1, sunAzDeg: -35, lift: [0, 0, 0], decay: 0, fire: 0, winter: 0, cloakRimMin: 0.15, ...o });
+const P = (o) => ({ exposure: 1, sunAzDeg: -35, lift: [0, 0, 0], decay: 0, fire: 0, winter: 0, cloakRimMin: 0.15, skyGrad: 0, ...o });
 export const PROFILES = {
   act1: P({ name: 'Act 1 - warm decline (Marcescius)', key: 0xffb070, keyInt: 2.2, sunDeg: 18, sky: 0xf2c58a, ground: 0x3a2414, hemiInt: 0.6,
-    fog: 0xc9925a, fogDensity: 0.012, saturation: 1.1, lift: [0.045, 0.025, 0.008], decay: 1 }),
+    fog: 0xc9925a, fogDensity: 0.012, saturation: 1.1, lift: [0.045, 0.025, 0.008], decay: 1, skyGrad: 1 }),
   act1_arena: P({ name: 'Act 1 - arena', key: 0xd9a77a, keyInt: 2.2, sunDeg: 18, sky: 0xf2c58a, ground: 0x3a2414, hemiInt: 0.6,
-    fog: 0xc9925a, fogDensity: 0.018, saturation: 0.6, lift: [0.045, 0.025, 0.008], decay: 1 }),
+    fog: 0xc9925a, fogDensity: 0.018, saturation: 0.6, lift: [0.045, 0.025, 0.008], decay: 1, skyGrad: 1 }),
   act2: P({ name: 'Act 2 - dusk (Tenebrius)', key: 0x8a7aa8, keyInt: 0.9, sunDeg: 4, sky: 0x4a4060, ground: 0x1a1418, hemiInt: 0.35,
     fog: 0x3b3346, fogDensity: 0.03, saturation: 0.9, fire: 1, cloakRimMin: 0.35 }),
   act2_boss: P({ name: 'Act 2 - boss', key: 0x8a7aa8, keyInt: 0.9, sunDeg: 4, sky: 0x4a4060, ground: 0x1a1418, hemiInt: 0.35,
@@ -28,7 +30,7 @@ export const PROFILES = {
     fog: 0x5a6678, fogDensity: 0.025, saturation: 0.85, winter: 1 }),
 };
 const COLORS = ['key', 'sky', 'ground', 'fog'];
-const NUMS = ['keyInt', 'sunDeg', 'sunAzDeg', 'hemiInt', 'fogDensity', 'saturation', 'exposure', 'decay', 'fire', 'winter', 'cloakRimMin'];
+const NUMS = ['keyInt', 'sunDeg', 'sunAzDeg', 'hemiInt', 'fogDensity', 'saturation', 'exposure', 'decay', 'fire', 'winter', 'cloakRimMin', 'skyGrad'];
 
 function resolve(p) { // profile -> live state with THREE.Color (linear)
   const s = {}; for (const k of NUMS) s[k] = p[k]; for (const k of COLORS) s[k] = new THREE.Color(p[k]);
@@ -101,6 +103,28 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
   const fog = new THREE.FogExp2(0x000000, 0.01); scene.fog = fog;
   if (!(scene.background instanceof THREE.Color)) scene.background = new THREE.Color();
   const grade = new ShaderPass(GradeShader);
+  // Sky gradient: 1 x rows equirect DataTexture (v 0.5 = horizon, 1 = zenith; below the
+  // horizon holds the horizon colour). Rebuilt only when its inputs change; scene.background
+  // falls back to the plain fog Color when the gradient weight is 0.
+  const bgColor = scene.background, skyRows = SKY_GRADIENT.rows, skyData = new Uint8Array(skyRows * 4);
+  const skyTex = new THREE.DataTexture(skyData, 1, skyRows); skyTex.mapping = THREE.EquirectangularReflectionMapping;
+  skyTex.colorSpace = THREE.SRGBColorSpace; skyTex.magFilter = skyTex.minFilter = THREE.LinearFilter;
+  const skyH = new THREE.Color(SKY_GRADIENT.horizon), skyZ = new THREE.Color(SKY_GRADIENT.zenith), skyC = new THREE.Color(), skyRGB = { r: 0, g: 0, b: 0 };
+  let skyKey = '';
+  function applySky(fogColor, w) {
+    if (w <= 0.001) { scene.background = bgColor; bgColor.copy(fogColor); return; }
+    const key = `${w.toFixed(3)}|${fogColor.getHexString()}`;
+    if (key !== skyKey) {
+      skyKey = key;
+      for (let i = 0; i < skyRows; i++) {
+        const v = (i + 0.5) / skyRows, t = Math.min(1, Math.max(0, (v - 0.5) * 180 / SKY_GRADIENT.zenithDeg)); // 0 horizon .. 1 zenith
+        skyC.copy(skyH).lerp(skyZ, t).lerp(fogColor, 1 - w).getRGB(skyRGB, THREE.SRGBColorSpace);
+        skyData.set([skyRGB.r * 255, skyRGB.g * 255, skyRGB.b * 255, 255], i * 4);
+      }
+      skyTex.needsUpdate = true;
+    }
+    scene.background = skyTex;
+  }
   const uniforms = { // shared by reference into every patched material
     uFogHeightK: { value: HEIGHT_FOG_K }, uFirePos: { value: new THREE.Vector3() }, uFireOn: { value: 0 },
     uFireRadius: { value: FIRE.distance }, uFireFogScale: { value: FIRE.fogScale }, uPresence: { value: 0 },
@@ -146,7 +170,7 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
     sun.position.copy(sun.target.position).addScaledVector(sunDir, 25);
     sun.shadow.intensity = 1 - p;
     hemi.color.copy(out.sky); hemi.groundColor.copy(out.ground); hemi.intensity = out.hemiInt;
-    fog.color.copy(out.fog); fog.density = out.fogDensity; scene.background.copy(out.fog);
+    fog.color.copy(out.fog); fog.density = out.fogDensity; applySky(out.fog, out.skyGrad * (1 - p));
     renderer.toneMappingExposure = out.exposure;
     grade.uniforms.uSaturation.value = out.saturation;
     grade.uniforms.uLift.value.copy(out.lift).multiplyScalar(1 - p);
