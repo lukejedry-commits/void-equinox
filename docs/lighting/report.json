@@ -1,0 +1,110 @@
+[
+  {
+    "shot": "docs/lighting/act1_low.png",
+    "profile": "act1",
+    "quality": "low",
+    "presence": false,
+    "drawCalls": 62,
+    "meanLum": 0.194,
+    "tellLum": 0.769,
+    "ratio": 3.967,
+    "decayEdgeContrast": 0.644,
+    "fireRadiusRatio": 0.375
+  },
+  {
+    "shot": "docs/lighting/act1_high.png",
+    "profile": "act1",
+    "quality": "high",
+    "presence": false,
+    "drawCalls": 75,
+    "meanLum": 0.194,
+    "tellLum": 0.921,
+    "ratio": 4.751,
+    "decayEdgeContrast": 0.641,
+    "fireRadiusRatio": 0.382
+  },
+  {
+    "shot": "docs/lighting/act1_arena_high.png",
+    "profile": "act1_arena",
+    "quality": "high",
+    "presence": false,
+    "drawCalls": 75,
+    "meanLum": 0.187,
+    "tellLum": 0.915,
+    "ratio": 4.884,
+    "decayEdgeContrast": 0.591,
+    "fireRadiusRatio": 0.466
+  },
+  {
+    "shot": "docs/lighting/act2_low.png",
+    "profile": "act2",
+    "quality": "low",
+    "presence": false,
+    "drawCalls": 63,
+    "meanLum": 0.014,
+    "tellLum": 0.753,
+    "ratio": 54.259,
+    "decayEdgeContrast": 1.083,
+    "fireRadiusRatio": 8.001
+  },
+  {
+    "shot": "docs/lighting/act2_high.png",
+    "profile": "act2",
+    "quality": "high",
+    "presence": false,
+    "drawCalls": 76,
+    "meanLum": 0.014,
+    "tellLum": 0.897,
+    "ratio": 63.19,
+    "decayEdgeContrast": 1.011,
+    "fireRadiusRatio": 9.176
+  },
+  {
+    "shot": "docs/lighting/act2_presence_high.png",
+    "profile": "act2",
+    "quality": "high",
+    "presence": true,
+    "drawCalls": 76,
+    "meanLum": 0.362,
+    "tellLum": 0.964,
+    "ratio": 2.659,
+    "decayEdgeContrast": 0.518,
+    "fireRadiusRatio": 1.121
+  },
+  {
+    "shot": "docs/lighting/act3_low.png",
+    "profile": "act3",
+    "quality": "low",
+    "presence": false,
+    "drawCalls": 70,
+    "meanLum": 0.059,
+    "tellLum": 0.755,
+    "ratio": 12.881,
+    "decayEdgeContrast": 0.951,
+    "fireRadiusRatio": 0.22
+  },
+  {
+    "shot": "docs/lighting/act3_high.png",
+    "profile": "act3",
+    "quality": "high",
+    "presence": false,
+    "drawCalls": 83,
+    "meanLum": 0.059,
+    "tellLum": 0.897,
+    "ratio": 15.293,
+    "decayEdgeContrast": 0.951,
+    "fireRadiusRatio": 0.245
+  },
+  {
+    "shot": "docs/screenshot_tps.png",
+    "profile": "act1",
+    "quality": "high",
+    "presence": false,
+    "drawCalls": 76,
+    "meanLum": 0.189,
+    "tellLum": 0.928,
+    "ratio": 4.896,
+    "decayEdgeContrast": 0.794,
+    "fireRadiusRatio": null
+  }
+]
