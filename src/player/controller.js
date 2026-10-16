@@ -46,6 +46,7 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   // function of the input vector.
   const maxSub = 0.5 * T.radius;
   let lastGrounded = false;
+  let stallRetries = 0;
   function move(desired) {
     const len = Math.hypot(desired.x, desired.y, desired.z);
     const n = Math.max(1, Math.ceil(len / maxSub));
@@ -58,6 +59,17 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
       const m = kcc.computedMovement();
       grounded = kcc.computedGrounded();
       total.x += m.x; total.y += m.y; total.z += m.z;
+      // Stall recovery: a sub-move that achieved <10% of its request while in
+      // contact is retried ONCE from where it stopped with the remaining movement.
+      const req = Math.hypot(sd.x, sd.y, sd.z), got = Math.hypot(m.x, m.y, m.z);
+      if (req > 0 && got < 0.1 * req && kcc.numComputedCollisions() > 0) {
+        entry.collider.setTranslation({ x: t0.x + total.x, y: t0.y + total.y, z: t0.z + total.z });
+        kcc.computeColliderMovement(entry.collider, { x: sd.x - m.x, y: sd.y - m.y, z: sd.z - m.z });
+        const m2 = kcc.computedMovement();
+        grounded = kcc.computedGrounded();
+        total.x += m2.x; total.y += m2.y; total.z += m2.z;
+        stallRetries++;
+      }
       if (i < n - 1) entry.collider.setTranslation({ x: t0.x + total.x, y: t0.y + total.y, z: t0.z + total.z });
     }
     lastGrounded = grounded;
@@ -121,5 +133,5 @@ export function createPlayer(phys, { x = 0, y = 2, z = 0, heaviness = 0.5, tunin
   // Test hook: arbitrary desired translation, still routed through the KCC.
   function pushRaw(desired) { return move(desired); }
 
-  return { id, state: s, update, pushRaw, subSteps: (d) => Math.max(1, Math.ceil(Math.hypot(d.x, d.y, d.z) / maxSub)), position: () => entry.body.translation(), kcc };
+  return { id, state: s, update, pushRaw, subSteps: (d) => Math.max(1, Math.ceil(Math.hypot(d.x, d.y, d.z) / maxSub)), position: () => entry.body.translation(), kcc, stallRetries: () => stallRetries };
 }

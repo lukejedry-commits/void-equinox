@@ -85,7 +85,7 @@ test('slide along wall at shallow angle (10 deg): keeps moving tangentially', as
     prevZ = p.z;
   }
   const slid = scene.player.position().z - z0, ideal = N * v * Math.cos(a);
-  console.log(`# slide: tangential=${slid.toFixed(4)} m of ideal ${ideal.toFixed(4)} (${(100 * slid / ideal).toFixed(1)}%), stalled steps=${stalls}/${N}, max x=${maxX.toFixed(4)} (face-R=${(face - R).toFixed(4)})`);
+  console.log(`# slide: tangential=${slid.toFixed(4)} m of ideal ${ideal.toFixed(4)} (${(100 * slid / ideal).toFixed(1)}%), stalled steps=${stalls}/${N}, stall retries=${scene.player.stallRetries()}, max x=${maxX.toFixed(4)} (face-R=${(face - R).toFixed(4)})`);
   scene.phys.free();
   assert.ok(maxX >= face - R - 0.05, 'never reached the wall');
   assert.ok(maxX <= face - R + 0.005, 'penetrated wall');
