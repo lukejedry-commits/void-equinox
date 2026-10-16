@@ -4,9 +4,11 @@
 // field `yawQ` (see core/input.js), so replays are independent of this module.
 import * as THREE from 'three';
 import { RAPIER } from '../physics/world.js';
+import { CAMERA as CF } from '../config/feel.js';
 
 const D = Math.PI / 180;
-// TODO(Mechanics): every number below is a placeholder (values from Graphics brief).
+// Feel numbers (sensitivity, smoothing, lock-on LOS) come from src/config/feel.js; entries still
+// marked TODO(Mechanics) were not covered by the Mechanics feel sheet.
 export const CAMERA_TUNING = {
   fovDeg: 60,              // vertical FOV. TODO(Mechanics)
   near: 0.1,               // TODO(Mechanics)
@@ -19,11 +21,14 @@ export const CAMERA_TUNING = {
   aimUp: 0.55,             // look point above pivot -> character in the lower third. TODO(Mechanics)
   pitchMinDeg: -35, pitchMaxDeg: 60, // TODO(Mechanics)
   defaultPitchDeg: 12,     // TODO(Mechanics)
-  mouseSens: 0.0025,       // rad per pixel. TODO(Mechanics)
-  stickSens: 2.6,          // rad/s at full right-stick deflection. TODO(Mechanics)
-  keySens: 2.0,            // rad/s for arrow keys. TODO(Mechanics)
+  mouseSens: CF.mouseDegPerPx * Math.PI / 180,        // rad per pixel (0.12 deg/px, feel.js)
+  stickYawSens: CF.stickYawDegPerSec * Math.PI / 180,  // rad/s at full right-stick deflection (180 deg/s)
+  stickPitchSens: CF.stickPitchDegPerSec * Math.PI / 180, // 120 deg/s
+  keySens: CF.stickYawDegPerSec * Math.PI / 180,       // arrow keys = full stick yaw rate
+  keyPitchSens: CF.stickPitchDegPerSec * Math.PI / 180,
+  lockLosBreakSec: CF.lockLosBreakSec,
   stickDeadzone: 0.15,     // TODO(Mechanics)
-  rotSmoothing: 14,        // 1/s exponential yaw/pitch smoothing. TODO(Mechanics)
+  rotSmoothing: 1 / CF.smoothingSec, // 1/s exponential yaw/pitch smoothing (0.08 s, feel.js)
   posSmoothing: 18,        // 1/s pivot follow smoothing. TODO(Mechanics)
   collisionRadius: 0.2,    // sphere-cast radius. TODO(Mechanics)
   collisionMargin: 0.05,   // TODO(Mechanics)
@@ -69,7 +74,15 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
     for (const t of targets) { const q = t.position(); const d = Math.hypot(q.x - p.x, q.z - p.z); if (d <= bd) { bd = d; best = t; } }
     return best;
   }
-  function setLock(t) { st.lock?.onLock?.(false); st.lock = t; t?.onLock?.(true); }
+  function setLock(t) { st.lock?.onLock?.(false); st.lock = t; st.losLost = 0; t?.onLock?.(true); }
+  function hasLos(from, q) {
+    if (!phys) return true;
+    const dx = q.x - from.x, dy = q.y - from.y, dz = q.z - from.z, len = Math.hypot(dx, dy, dz);
+    if (len < 1e-6) return true;
+    const ray = new RAPIER.Ray(from, { x: dx / len, y: dy / len, z: dz / len });
+    const hit = phys.world.castRay(ray, Math.max(0, len - (q.radius ?? 0.6)), true, undefined, undefined, undefined, undefined, (c) => { const b = c.parent(); return !!b && b.isFixed(); });
+    return !hit;
+  }
   function toggleLock() { if (st.lock) setLock(null); else setLock(nearestTarget(pivot)); }
 
   // Distance along pivot->desired the sphere can travel before hitting static geometry.
@@ -88,13 +101,13 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
     // --- input (render side) ---
     let dy = -mdx * T.mouseSens, dp = mdy * T.mouseSens; mdx = mdy = 0;
     dy += ((keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0)) * T.keySens * dt;
-    dp += ((keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0)) * T.keySens * dt;
+    dp += ((keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0)) * T.keyPitchSens * dt;
     const pads = globalThis.navigator?.getGamepads?.() ?? [];
     for (const g of pads) {
       if (!g) continue;
       const rx = g.axes[2] ?? 0, ry = g.axes[3] ?? 0;
-      if (Math.abs(rx) > T.stickDeadzone) dy -= rx * T.stickSens * dt;
-      if (Math.abs(ry) > T.stickDeadzone) dp += ry * T.stickSens * dt;
+      if (Math.abs(rx) > T.stickDeadzone) dy -= rx * T.stickYawSens * dt;
+      if (Math.abs(ry) > T.stickDeadzone) dp += ry * T.stickPitchSens * dt;
       const r3 = g.buttons[11]?.pressed; if (r3 && !g.__r3) toggleLock(); g.__r3 = r3;
       break;
     }
@@ -105,7 +118,10 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
     if (st.lock) {
       const q = st.lock.position();
       const d = Math.hypot(q.x - pivot.x, q.z - pivot.z);
-      if (d > T.lockBreakRange) setLock(null);
+      // Line of sight: ray pivot -> target against static geometry (the target's own
+      // collider is excluded by stopping short of it). Lost > lockLosBreakSec breaks lock.
+      st.losLost = hasLos(pivot, q) ? 0 : (st.losLost || 0) + dt;
+      if (d > T.lockBreakRange || st.losLost > T.lockLosBreakSec) setLock(null);
       else {
         const goal = Math.atan2(-(q.x - pivot.x), -(q.z - pivot.z)); // face the target
         st.tYaw += wrap(goal - st.tYaw) * ease(T.lockSmoothing, dt);
@@ -156,6 +172,7 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
     orbit(dYaw, dPitch = 0) { if (!st.lock) { st.tYaw += dYaw; st.tPitch += dPitch; } },
     setYaw(y, p = st.pitch) { st.yaw = st.tYaw = y; st.pitch = st.tPitch = p; },
     get locked() { return st.lock; },
+    get losLost() { return st.losLost || 0; },
     get framing() { return { fov: st.fov, distance: st.baseDist, portrait: camera.aspect < 1 }; },
   };
 }

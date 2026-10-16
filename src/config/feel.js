@@ -41,4 +41,12 @@ export const KNOCKBACK = {
   staggerMaxSec: 0.4,                 // input lock after a hit, at most
 };
 
-export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL, KNOCKBACK };
+// Camera (render-side; the sim only sees the recorded yawQ).
+export const CAMERA = {
+  lockLosBreakSec: 1.0,               // break lock-on after line of sight is lost this long
+  mouseDegPerPx: 0.12,
+  stickYawDegPerSec: 180, stickPitchDegPerSec: 120, // at full deflection
+  smoothingSec: 0.08,                 // yaw/pitch smoothing time constant
+};
+
+export const FEEL = { MOVEMENT, DODGE, STAMINA, TUTORIAL, KNOCKBACK, CAMERA };
