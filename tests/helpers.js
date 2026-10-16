@@ -10,3 +10,19 @@ export function snapshot(scene) {
   }
   return out.join('|');
 }
+
+// Signed-distance penetration of the player capsule into scene colliders, from
+// Rapier's exact shape-vs-shape contact query (distance < 0 == penetration).
+// Returns the max depth (>= 0) into STATIC (fixed) colliders and into DYNAMIC ones.
+export function penetration(scene) {
+  const pc = scene.phys.get(scene.player.id).collider;
+  let stat = 0, dyn = 0;
+  for (const e of scene.phys.bodies.values()) {
+    if (e.id === scene.player.id) continue;
+    const c = pc.contactCollider(e.collider, 0);
+    if (!c || c.distance >= 0) continue;
+    const d = -c.distance;
+    if (e.body.isFixed()) stat = Math.max(stat, d); else dyn = Math.max(dyn, d);
+  }
+  return { stat, dyn };
+}

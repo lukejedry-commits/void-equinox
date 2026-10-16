@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initRapier } from './helpers.js';
+import { initRapier, penetration } from './helpers.js';
+import { strongPush } from './pushScenario.js';
 import { buildScene, stepScene, WALL } from '../src/game/scene.js';
 import { mulberry32 } from '../src/core/rng.js';
 import { FIXED_DT } from '../src/core/loop.js';
@@ -11,6 +12,13 @@ const R = 0.35; // capsule radius
 // Tunnel = crossing the wall plane while inside the wall's z-footprint (going round the end is legal).
 const through = (px, x, z) => px <= face && x > face && Math.abs(z) < WALL.halfDepth + R;
 const touched = (x) => x >= face - R - 0.05;
+const OFFSET = 0.02; // KCC offset: allowed penetration into static geometry
+const pen = { stat: 0, dyn: 0, statAt: '' };
+function trackPen(acc, scene, tag) {
+  const p = penetration(scene);
+  if (p.stat > acc.stat) { acc.stat = p.stat; acc.statAt = tag; }
+  acc.dyn = Math.max(acc.dyn, p.dyn);
+}
 
 function settle(scene, n = 30) { for (let i = 0; i < n; i++) stepScene(scene, { mx: 0, mz: 0, dodge: false }, FIXED_DT); }
 
@@ -18,6 +26,7 @@ test(`dodge into thin wall x${RUNS}: zero tunnelling`, async () => {
   await initRapier();
   const rng = mulberry32(777);
   let tunnels = 0, hits = 0, maxX = -Infinity;
+  const pa = { stat: 0, dyn: 0, statAt: '' };
   for (let r = 0; r < RUNS; r++) {
     const scene = buildScene({ seed: r, player: { x: rng.range(face - 3.5, face - 0.4), z: rng.range(-2.5, 2.5), heaviness: rng.next() } });
     settle(scene);
@@ -25,6 +34,7 @@ test(`dodge into thin wall x${RUNS}: zero tunnelling`, async () => {
     const mz = rng.int(-1, 1) * (rng.next() < 0.5 ? 1 : 0);
     for (let i = 0; i < 40; i++) {
       stepScene(scene, { mx: 1, mz, dodge: i === 0 || rng.next() < 0.1 }, FIXED_DT);
+      trackPen(pa, scene, `run ${r} step ${i}`);
       const p = scene.player.position(), x = p.x;
       if (through(px, x, p.z)) { tunnels++; console.log(`# TUNNEL run ${r} step ${i} px=${px} x=${x} z=${p.z}`); break; }
       if (Math.abs(p.z) < WALL.halfDepth) maxX = Math.max(maxX, x);
@@ -34,38 +44,21 @@ test(`dodge into thin wall x${RUNS}: zero tunnelling`, async () => {
     scene.phys.free();
   }
   console.log(`# dodge: ${RUNS} runs, wall contacts=${hits}, tunnels=${tunnels}, max x within wall span=${maxX.toFixed(4)} (wall face ${face})`);
+  console.log(`# dodge: max static penetration=${pa.stat.toFixed(4)} m (${pa.statAt}), max dynamic-box penetration=${pa.dyn.toFixed(4)} m (not asserted)`);
   assert.equal(tunnels, 0);
+  assert.ok(pa.stat <= OFFSET, `static penetration ${pa.stat} > ${OFFSET}`);
 });
 
 test(`strong push into thin wall x${RUNS}: zero tunnelling`, async () => {
   await initRapier();
-  const rng = mulberry32(999);
-  let tunnels = 0, hits = 0, maxX = -Infinity, maxY = -Infinity, maxPen = 0, above = 0;
-  const wallTop = 2 * WALL.halfHeight;
-  for (let r = 0; r < RUNS; r++) {
-    const scene = buildScene({ seed: r, player: { x: rng.range(face - 3.5, face - 0.4), z: rng.range(-2.5, 2.5) } });
-    settle(scene);
-    let px = scene.player.position().x, hit = false;
-    for (let i = 0; i < 10; i++) {
-      // up to 60 m in a single step (3600 m/s) -- far beyond any real speed
-      scene.player.pushRaw({ x: rng.range(1, 60), y: 0, z: rng.range(-0.05, 0.05) });
-      scene.phys.step();
-      const p = scene.player.position(), x = p.x;
-      if (through(px, x, p.z)) { tunnels++; console.log(`# TUNNEL run ${r} step ${i} px=${px} x=${x} z=${p.z}`); break; }
-      if (Math.abs(p.z) < WALL.halfDepth) maxX = Math.max(maxX, x);
-      if (Math.abs(p.z) < WALL.halfDepth - R) { const pen = x - (face - R); if (pen > 0.03) console.log(`# PEN run ${r} step ${i} pen=${pen.toFixed(4)} x=${x} y=${p.y} z=${p.z}`); maxPen = Math.max(maxPen, pen); } // capsule fully in front of face
-      maxY = Math.max(maxY, p.y);
-      if (p.y > wallTop) { above++; console.log(`# ABOVE WALL run ${r} step ${i} y=${p.y}`); break; }
-      if (touched(x) && !hit) { hit = true; hits++; }
-      px = x;
-    }
-    scene.phys.free();
-  }
+  const { tunnels, hits, maxX, maxY, maxPen, above, wallTop, pa } = strongPush({ runs: RUNS });
   console.log(`# push: max centre y=${maxY.toFixed(4)} (wall top ${wallTop}), runs ending above wall top=${above}, max penetration into face=${maxPen.toFixed(4)} m`);
   console.log(`# push: ${RUNS} runs, wall contacts=${hits}, tunnels=${tunnels}, max x within wall span=${maxX.toFixed(4)}`);
+  console.log(`# push: max static penetration=${pa.stat.toFixed(4)} m (${pa.statAt}), max dynamic-box penetration=${pa.dyn.toFixed(4)} m (not asserted)`);
   assert.equal(tunnels, 0);
   assert.equal(above, 0);
   assert.ok(maxY <= wallTop);
+  assert.ok(pa.stat <= OFFSET, `static penetration ${pa.stat} > ${OFFSET}`);
 });
 
 test('slide along wall at shallow angle (10 deg): keeps moving tangentially', async () => {
@@ -76,9 +69,11 @@ test('slide along wall at shallow angle (10 deg): keeps moving tangentially', as
   const p0 = scene.player.position();
   const z0 = p0.z; let maxX = -Infinity, stalls = 0, prevZ = z0;
   const N = 45;
+  const pa = { stat: 0, dyn: 0, statAt: '' };
   for (let i = 0; i < N; i++) {
     scene.player.pushRaw({ x: v * Math.sin(a), y: 0, z: v * Math.cos(a) });
     scene.phys.step();
+    trackPen(pa, scene, `step ${i}`);
     const p = scene.player.position();
     maxX = Math.max(maxX, p.x);
     if (p.z - prevZ < 0.25 * v * Math.cos(a)) { stalls++; console.log(`# SLIDE STALL step ${i} dz=${p.z - prevZ} x=${p.x}`); }
@@ -86,7 +81,9 @@ test('slide along wall at shallow angle (10 deg): keeps moving tangentially', as
   }
   const slid = scene.player.position().z - z0, ideal = N * v * Math.cos(a);
   console.log(`# slide: tangential=${slid.toFixed(4)} m of ideal ${ideal.toFixed(4)} (${(100 * slid / ideal).toFixed(1)}%), stalled steps=${stalls}/${N}, stall retries=${scene.player.stallRetries()}, max x=${maxX.toFixed(4)} (face-R=${(face - R).toFixed(4)})`);
+  console.log(`# slide: max static penetration=${pa.stat.toFixed(4)} m, max dynamic-box penetration=${pa.dyn.toFixed(4)} m (not asserted)`);
   scene.phys.free();
+  assert.ok(pa.stat <= OFFSET, `static penetration ${pa.stat} > ${OFFSET}`);
   assert.ok(maxX >= face - R - 0.05, 'never reached the wall');
   assert.ok(maxX <= face - R + 0.005, 'penetrated wall');
   assert.equal(stalls, 0);
