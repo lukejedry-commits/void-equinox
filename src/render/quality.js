@@ -14,26 +14,30 @@ export function saveOverride(v, storage = globalThis.localStorage) {
   try { storage?.setItem(KEY, v); } catch { /* ignore */ }
 }
 
-// Auto-detect: start Medium, sample fps for `windowSec`, then drop/raise once.
-export function createQuality({ onChange, windowSec = 4, lowBelow = 45, highAbove = 58 } = {}) {
-  const override = loadOverride();
-  let tier = override === 'auto' ? 'medium' : override;
+// Auto: start at High; whenever the average frame time over a 2 s window exceeds 20 ms,
+// step down ONE tier (High -> Medium -> Low). Never steps back up within a session.
+export const AUTO = { stepDownAboveMs: 20, windowSec: 2 };
+const ORDER = ['high', 'medium', 'low'];
+export function createQuality({ onChange, storage = globalThis.localStorage, windowSec = AUTO.windowSec, aboveMs = AUTO.stepDownAboveMs } = {}) {
+  const override = loadOverride(storage);
   let auto = override === 'auto';
-  let elapsed = 0, frames = 0, decided = !auto;
+  let tier = auto ? 'high' : override;
+  let elapsed = 0, frames = 0;
   const set = (t) => { tier = t; onChange?.(PRESETS[t], t); };
   return {
     get tier() { return tier; }, get preset() { return PRESETS[tier]; }, get auto() { return auto; },
     init() { set(tier); },
     frame(dt) {
-      if (decided) return;
+      if (!auto || tier === 'low' || !(dt > 0)) return;
       elapsed += dt; frames++;
       if (elapsed < windowSec) return;
-      const fps = frames / elapsed; decided = true;
-      if (fps < lowBelow) set('low'); else if (fps >= highAbove) set('high');
+      const avgMs = (elapsed / frames) * 1000;
+      elapsed = 0; frames = 0;
+      if (avgMs > aboveMs) set(ORDER[ORDER.indexOf(tier) + 1]); // one tier down, never up
     },
     setOverride(v) {
-      saveOverride(v); auto = v === 'auto';
-      if (auto) { decided = false; elapsed = 0; frames = 0; set('medium'); } else { decided = true; set(v); }
+      saveOverride(v, storage); auto = v === 'auto'; elapsed = 0; frames = 0;
+      if (auto) set(tier); else set(v); // switching back to auto keeps the current tier (no step up)
     },
   };
 }
