@@ -3,6 +3,7 @@
 // yaw reaches the sim only as the recorded, quantized yawQ. Nothing here touches the sim.
 import { TOUCH } from '../config/feel.js';
 import { quantizeAxis } from '../core/touchstick.js';
+import { usesTouchUI, stickAccepts } from './controlmode.js';
 
 const D = Math.PI / 180;
 export const isTouchDevice = () => (globalThis.matchMedia?.('(pointer: coarse)').matches || (navigator.maxTouchPoints || 0) > 0);
@@ -18,8 +19,8 @@ export function buttonLayout(B = TOUCH.buttons) {
   return { dodge, light, heavy, fire, lock };
 }
 
-export function createTouchControls({ input, camera: tps, root = document.body }) {
-  if (!isTouchDevice()) return null;
+// mode: control mode ('pc' | 'phone' | 'tablet'); the overlay is hidden (and inert) in PC mode.
+export function createTouchControls({ input, camera: tps, root = document.body, mode = 'pc' }) {
   const S = TOUCH.stick, L = TOUCH.look;
   const css = document.createElement('style');
   css.textContent = `#touch{position:fixed;inset:0;z-index:15;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -27,9 +28,12 @@ export function createTouchControls({ input, camera: tps, root = document.body }
 #touch .btn.on{background:#ff8a3a55}
 #touch .stick{position:absolute;border-radius:50%;border:2px solid #ffd9a055;pointer-events:none;display:none;transform:translate(-50%,-50%)}
 #touch .knob{position:absolute;width:56px;height:56px;border-radius:50%;background:#ffd9a066;pointer-events:none;display:none;transform:translate(-50%,-50%)}
-#hint{display:none}`;
+#touch.off{display:none}
+#touch.on~#hint,body.touchui #hint{display:none}`;
   document.head.appendChild(css);
   const el = document.createElement('div'); el.id = 'touch'; root.appendChild(el);
+  let curMode = mode;
+  const applyMode = () => { const on = usesTouchUI(curMode); el.classList.toggle('off', !on); document.body.classList.toggle('touchui', on); if (!on) { input.setTouchStick(0, 0, false); input.setTouchSprint(false); } };
   const ring = Object.assign(document.createElement('div'), { className: 'stick' });
   ring.style.width = ring.style.height = `${S.radiusPx * 2}px`;
   const knob = Object.assign(document.createElement('div'), { className: 'knob' });
@@ -48,6 +52,7 @@ export function createTouchControls({ input, camera: tps, root = document.body }
   const now = () => performance.now() / 1000;
 
   el.addEventListener('pointerdown', (e) => {
+    if (!usesTouchUI(curMode)) return;
     e.preventDefault(); el.setPointerCapture?.(e.pointerId);
     const k = e.target.dataset?.k;
     if (k) { // button
@@ -56,7 +61,8 @@ export function createTouchControls({ input, camera: tps, root = document.body }
       if (k === 'dodge') st.timer = setTimeout(() => { st.sprint = true; input.setTouchSprint(true); }, TOUCH.dodgeHoldSprintSec * 1000);
       ptr.set(e.pointerId, st); return;
     }
-    if (e.clientX < innerWidth * S.areaFrac) { // floating move stick
+    if (e.clientX < innerWidth * S.areaFrac) { // floating move stick: real touch contacts only
+      if (!stickAccepts(curMode, e.pointerType)) return;
       ptr.set(e.pointerId, { role: 'stick', ox: e.clientX, oy: e.clientY });
       Object.assign(ring.style, { left: `${e.clientX}px`, top: `${e.clientY}px`, display: 'block' });
       Object.assign(knob.style, { left: `${e.clientX}px`, top: `${e.clientY}px`, display: 'block' });
@@ -94,8 +100,11 @@ export function createTouchControls({ input, camera: tps, root = document.body }
   };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
 
+  applyMode();
   return {
     el,
+    setMode(m) { curMode = m; applyMode(); },
+    get mode() { return curMode; },
     // Per render frame: apply the smoothed look delta (0.05 s exponential, no accel).
     update(dt) {
       const k = 1 - Math.exp(-dt / L.smoothingSec);
