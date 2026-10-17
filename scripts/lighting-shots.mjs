@@ -6,7 +6,7 @@ import { withPage } from './headless.mjs';
 
 const SHOTS = [
   ['act1_low', 'act1', 'low'], ['act1_high', 'act1', 'high'], ['act1_arena_high', 'act1_arena', 'high'],
-  ['act2_low', 'act2', 'low'], ['act2_high', 'act2', 'high'], ['act2_presence_low', 'act2', 'low', true], ['act2_presence_high', 'act2', 'high', true],
+  ['act2_low', 'act2', 'low'], ['act2_high', 'act2', 'high'], ['act2_presence_low', 'act2', 'low', true], ['act2_presence_medium', 'act2', 'medium', true], ['act2_presence_high', 'act2', 'high', true],
   ['act3_low', 'act3', 'low'], ['act3_high', 'act3', 'high'],
 ];
 mkdirSync('docs/lighting', { recursive: true });

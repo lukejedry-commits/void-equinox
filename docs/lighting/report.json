@@ -4,12 +4,12 @@
     "profile": "act1",
     "quality": "low",
     "presence": false,
-    "drawCalls": 15,
-    "meanLum": 0.202,
+    "drawCalls": 14,
+    "meanLum": 0.198,
     "tellLum": 0.769,
-    "ratio": 3.798,
-    "decayEdgeContrast": 0.622,
-    "fireRadiusRatio": 0.375
+    "ratio": 3.894,
+    "decayEdgeContrast": 0.832,
+    "fireRadiusRatio": 0.303
   },
   {
     "shot": "docs/lighting/act1_high.png",
@@ -40,12 +40,12 @@
     "profile": "act2",
     "quality": "low",
     "presence": false,
-    "drawCalls": 17,
-    "meanLum": 0.013,
-    "tellLum": 0.753,
-    "ratio": 55.832,
-    "decayEdgeContrast": 0.972,
-    "fireRadiusRatio": 8.001
+    "drawCalls": 16,
+    "meanLum": 0.014,
+    "tellLum": 0.754,
+    "ratio": 55.511,
+    "decayEdgeContrast": 0.951,
+    "fireRadiusRatio": 8.155
   },
   {
     "shot": "docs/lighting/act2_high.png",
@@ -55,7 +55,7 @@
     "drawCalls": 30,
     "meanLum": 0.014,
     "tellLum": 0.897,
-    "ratio": 64.997,
+    "ratio": 64.998,
     "decayEdgeContrast": 1.413,
     "fireRadiusRatio": 9.176
   },
@@ -64,12 +64,24 @@
     "profile": "act2",
     "quality": "low",
     "presence": true,
-    "drawCalls": 17,
-    "meanLum": 0.369,
-    "tellLum": 0.932,
-    "ratio": 2.528,
-    "decayEdgeContrast": 0.424,
-    "fireRadiusRatio": 1.07
+    "drawCalls": 16,
+    "meanLum": 0.349,
+    "tellLum": 0.96,
+    "ratio": 2.755,
+    "decayEdgeContrast": 0.951,
+    "fireRadiusRatio": 1.103
+  },
+  {
+    "shot": "docs/lighting/act2_presence_medium.png",
+    "profile": "act2",
+    "quality": "medium",
+    "presence": true,
+    "drawCalls": 25,
+    "meanLum": 0.349,
+    "tellLum": 0.998,
+    "ratio": 2.859,
+    "decayEdgeContrast": 0.951,
+    "fireRadiusRatio": 1.12
   },
   {
     "shot": "docs/lighting/act2_presence_high.png",
@@ -88,12 +100,12 @@
     "profile": "act3",
     "quality": "low",
     "presence": false,
-    "drawCalls": 21,
+    "drawCalls": 20,
     "meanLum": 0.059,
     "tellLum": 0.755,
-    "ratio": 12.878,
-    "decayEdgeContrast": 0.551,
-    "fireRadiusRatio": 0.22
+    "ratio": 12.852,
+    "decayEdgeContrast": 0.556,
+    "fireRadiusRatio": 0.221
   },
   {
     "shot": "docs/lighting/act3_high.png",

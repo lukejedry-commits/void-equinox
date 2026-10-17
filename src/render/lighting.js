@@ -122,14 +122,14 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
   skyTex.colorSpace = THREE.SRGBColorSpace; skyTex.magFilter = skyTex.minFilter = THREE.LinearFilter;
   const skyH = new THREE.Color(SKY_GRADIENT.horizon), skyZ = new THREE.Color(SKY_GRADIENT.zenith), skyC = new THREE.Color(), skyRGB = { r: 0, g: 0, b: 0 };
   let skyKey = '';
-  function applySky(fogColor, w) {
+  function applySky(fogColor, w, sat = 1) {
     if (w <= 0.001) { scene.background = bgColor; bgColor.copy(fogColor); return; }
-    const key = `${w.toFixed(3)}|${fogColor.getHexString()}`;
+    const key = `${w.toFixed(3)}|${fogColor.getHexString()}|${sat.toFixed(3)}`;
     if (key !== skyKey) {
       skyKey = key;
       for (let i = 0; i < skyRows; i++) {
         const v = (i + 0.5) / skyRows, t = Math.min(1, Math.max(0, (v - 0.5) * 180 / SKY_GRADIENT.zenithDeg)); // 0 horizon .. 1 zenith
-        skyC.copy(skyH).lerp(skyZ, t).lerp(fogColor, 1 - w).getRGB(skyRGB, THREE.SRGBColorSpace);
+        desat(skyC.copy(skyH).lerp(skyZ, t), sat).lerp(fogColor, 1 - w).getRGB(skyRGB, THREE.SRGBColorSpace);
         skyData.set([skyRGB.r * 255, skyRGB.g * 255, skyRGB.b * 255, 255], i * 4);
       }
       skyTex.needsUpdate = true;
@@ -142,7 +142,14 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
   };
   let from = resolve(PROFILES[initial]), to = resolve(PROFILES[initial]);
   const cur = resolve(PROFILES[initial]), out = clone(cur);
-  let t = 1, current = initial, brightness = 0;
+  let t = 1, current = initial, brightness = 0, baked = false;
+  // Baked grade (Low/Medium): no grading pass; saturation is folded into the light, fog and
+  // sky colours instead, so presence (saturation -> 0.3) still desaturates the frame
+  // through those values. Emissives other than the fire light are not graded.
+  const lumW = [0.2126, 0.7152, 0.0722];
+  const desat = (c, k) => { const l = c.r * lumW[0] + c.g * lumW[1] + c.b * lumW[2];
+    c.setRGB(Math.max(0, l + (c.r - l) * k), Math.max(0, l + (c.g - l) * k), Math.max(0, l + (c.b - l) * k)); return c; };
+  const fireBase = new THREE.Color(FIRE.color);
   // presence: 0..1; on = held
   const presence = { value: 0, on: false };
   const flat = new THREE.Color(PRESENCE.flat), paleFog = new THREE.Color(PRESENCE.fog);
@@ -175,20 +182,22 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
     out.saturation += (PRESENCE.saturation - out.saturation) * p;
     out.hemiInt += (PRESENCE.hemiInt - out.hemiInt) * p; out.keyInt += (PRESENCE.keyInt - out.keyInt) * p;
     // shadows flattened via sun.shadow.intensity -> 0 below; hemi fill raised so undersides go pale
+    if (baked) { for (const k of ['key', 'sky', 'ground', 'fog']) desat(out[k], out.saturation); }
+    grade.enabled = !baked;
     sun.color.copy(out.key); sun.intensity = out.keyInt;
     const el = THREE.MathUtils.degToRad(out.sunDeg), az = THREE.MathUtils.degToRad(out.sunAzDeg);
     sunDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az));
     sun.position.copy(sun.target.position).addScaledVector(sunDir, 25);
     sun.shadow.intensity = 1 - p;
     hemi.color.copy(out.sky); hemi.groundColor.copy(out.ground); hemi.intensity = out.hemiInt;
-    fog.color.copy(out.fog); fog.density = out.fogDensity; applySky(out.fog, out.skyGrad * (1 - p));
+    fog.color.copy(out.fog); fog.density = out.fogDensity; applySky(out.fog, out.skyGrad * (1 - p), baked ? out.saturation : 1);
     renderer.toneMappingExposure = out.exposure * brightnessScale(brightness);
     grade.uniforms.uSaturation.value = out.saturation;
     grade.uniforms.uLift.value.copy(out.lift).multiplyScalar(1 - p);
     grade.uniforms.uPresence.value = p;
     uniforms.uPresence.value = p;
     uniforms.uFireOn.value = out.fire;
-    if (fire) { fire.intensity = FIRE.intensity * out.fire; uniforms.uFirePos.value.copy(fire.getWorldPosition(new THREE.Vector3())); }
+    if (fire) { fire.color.copy(fireBase); if (baked) desat(fire.color, out.saturation); fire.intensity = FIRE.intensity * out.fire; uniforms.uFirePos.value.copy(fire.getWorldPosition(new THREE.Vector3())); }
   }
   function update(dt) {
     if (t < 1) { t = Math.min(1, t + dt * rate); lerpState(cur, from, to, t); }
@@ -200,6 +209,7 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
   setProfile(initial, 0); apply();
   return {
     uniforms, grade, presence, patchMaterial, patchScene, setProfile, setPresence, update,
+    setBakedGrade(on) { baked = !!on; apply(); }, get bakedGrade() { return baked; },
     setBrightness(b) { brightness = clampBrightness(b); apply(); return brightness; }, get brightness() { return brightness; },
     get profile() { return current; }, get blend() { return t; }, get state() { return out; },
     weights: () => ({ cloakRimMin: out.cloakRimMin, decay: out.decay, fire: out.fire, winter: out.winter, presence: presence.value }),

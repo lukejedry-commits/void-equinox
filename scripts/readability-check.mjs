@@ -1,12 +1,12 @@
 // Readability check: renders each act headless on Low and High and measures the tell-flare
-// patch luminance vs scene mean (must be >= 2.5x), decay edge contrast and fire radius.
+// patch luminance vs scene mean (must be >= 2.5x) on Low, Medium (baked grade) and High, decay edge contrast and fire radius.
 // Usage: npm run build && npm run check:readability   (exit 1 on any ratio < 2.5)
 import { withPage } from './headless.mjs';
 
 const MIN = 2.5;
 let fail = false;
 await withPage(async (open) => {
-  for (const q of ['low', 'high']) {
+  for (const q of ['low', 'medium', 'high']) {
     const page = await open('shot', q);
     for (const unblockable of [false, true]) {
       const res = await page.evaluate((u) => window.__readability({ presence: ['act2'], unblockable: u }), unblockable);

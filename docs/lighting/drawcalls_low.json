@@ -3,8 +3,8 @@
     "act": "act1",
     "presence": false,
     "quality": "low",
-    "total": 15,
-    "sum": 15,
+    "total": 14,
+    "sum": 14,
     "systems": {
       "shadow pass: main meshes: static merged (ground+wall)": 1,
       "shadow pass: main meshes: boxes (instanced)": 1,
@@ -16,16 +16,15 @@
       "main: main meshes: lock-on dummy": 1,
       "main: particles: Meridius motes": 1,
       "main: stand-in parts": 4,
-      "post: output (tone map)": 1,
-      "post: colour grade": 1
+      "post: output (tone map)": 1
     }
   },
   {
     "act": "act1_arena",
     "presence": false,
     "quality": "low",
-    "total": 15,
-    "sum": 15,
+    "total": 14,
+    "sum": 14,
     "systems": {
       "shadow pass: main meshes: static merged (ground+wall)": 1,
       "shadow pass: main meshes: boxes (instanced)": 1,
@@ -37,16 +36,15 @@
       "main: main meshes: lock-on dummy": 1,
       "main: particles: Meridius motes": 1,
       "main: stand-in parts": 4,
-      "post: output (tone map)": 1,
-      "post: colour grade": 1
+      "post: output (tone map)": 1
     }
   },
   {
     "act": "act2",
     "presence": false,
     "quality": "low",
-    "total": 17,
-    "sum": 17,
+    "total": 16,
+    "sum": 16,
     "systems": {
       "shadow pass: main meshes: static merged (ground+wall)": 1,
       "shadow pass: main meshes: boxes (instanced)": 1,
@@ -60,16 +58,15 @@
       "main: particles: Meridius motes": 1,
       "main: particles: -ius smoke": 1,
       "main: stand-in parts": 4,
-      "post: output (tone map)": 1,
-      "post: colour grade": 1
+      "post: output (tone map)": 1
     }
   },
   {
     "act": "act2_boss",
     "presence": false,
     "quality": "low",
-    "total": 17,
-    "sum": 17,
+    "total": 16,
+    "sum": 16,
     "systems": {
       "shadow pass: main meshes: static merged (ground+wall)": 1,
       "shadow pass: main meshes: boxes (instanced)": 1,
@@ -83,16 +80,15 @@
       "main: particles: Meridius motes": 1,
       "main: particles: -ius smoke": 1,
       "main: stand-in parts": 4,
-      "post: output (tone map)": 1,
-      "post: colour grade": 1
+      "post: output (tone map)": 1
     }
   },
   {
     "act": "act3",
     "presence": false,
     "quality": "low",
-    "total": 21,
-    "sum": 21,
+    "total": 20,
+    "sum": 20,
     "systems": {
       "shadow pass: props act3: winter door": 3,
       "shadow pass: main meshes: static merged (ground+wall)": 1,
@@ -106,16 +102,15 @@
       "main: main meshes: lock-on dummy": 1,
       "main: particles: Meridius motes": 1,
       "main: stand-in parts": 4,
-      "post: output (tone map)": 1,
-      "post: colour grade": 1
+      "post: output (tone map)": 1
     }
   },
   {
     "act": "act2",
     "presence": true,
     "quality": "low",
-    "total": 17,
-    "sum": 17,
+    "total": 16,
+    "sum": 16,
     "systems": {
       "shadow pass: main meshes: static merged (ground+wall)": 1,
       "shadow pass: main meshes: boxes (instanced)": 1,
@@ -129,8 +124,7 @@
       "main: particles: Meridius motes": 1,
       "main: particles: -ius smoke": 1,
       "main: stand-in parts": 4,
-      "post: output (tone map)": 1,
-      "post: colour grade": 1
+      "post: output (tone map)": 1
     }
   }
 ]

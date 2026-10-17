@@ -1,9 +1,9 @@
 // Low / Medium / High presets with auto-detect and persisted override.
 // smokeResScale: smoke layer render-target scale (0 = no smoke layer). Not yet consumed; read it when the smoke pass lands.
 export const PRESETS = {
-  low:    { name: 'Low',    fpsCap: 30, resScale: 0.75, pixelRatioCap: 1.5, shadowMapSize: 1024, dirLights: 1, pointLights: 1, bloom: false, bloomRes: 0,    bloomMips: 0, particleCap: 2000,  smokeResScale: 0 },
-  medium: { name: 'Medium', fpsCap: 60, resScale: 0.75, pixelRatioCap: 2,   shadowMapSize: 1536, dirLights: 1, pointLights: 2, bloom: true,  bloomRes: 0.25, bloomMips: 3, particleCap: 4000,  smokeResScale: 0 }, // final (Graphics & Atmosphere)
-  high:   { name: 'High',   fpsCap: 60, resScale: 1.0,  pixelRatioCap: 2,   shadowMapSize: 2048, dirLights: 1, pointLights: 2, bloom: true,  bloomRes: 0.5,  bloomMips: 5, particleCap: 6000,  smokeResScale: 0.5 }, // final (Graphics & Atmosphere)
+  low:    { name: 'Low',    fpsCap: 30, resScale: 0.75, pixelRatioCap: 1.5, shadowMapSize: 1024, dirLights: 1, pointLights: 1, bloom: false, bloomRes: 0,    bloomMips: 0, bakeGrade: true,  particleCap: 2000,  smokeResScale: 0 },
+  medium: { name: 'Medium', fpsCap: 60, resScale: 0.75, pixelRatioCap: 2,   shadowMapSize: 1536, dirLights: 1, pointLights: 2, bloom: true,  bloomRes: 0.25, bloomMips: 3, bakeGrade: true,  particleCap: 4000,  smokeResScale: 0 }, // final (Graphics & Atmosphere)
+  high:   { name: 'High',   fpsCap: 60, resScale: 1.0,  pixelRatioCap: 2,   shadowMapSize: 2048, dirLights: 1, pointLights: 2, bloom: true,  bloomRes: 0.5,  bloomMips: 5, bakeGrade: false, particleCap: 6000,  smokeResScale: 0.5 }, // final (Graphics & Atmosphere)
 };
 const KEY = 'voidEquinox.quality'; // 'auto' | 'low' | 'medium' | 'high'
 

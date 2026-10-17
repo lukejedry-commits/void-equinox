@@ -132,6 +132,7 @@ const quality = createQuality({ onChange: (p) => {
   preset = p;
   sun.shadow.mapSize.set(p.shadowMapSize, p.shadowMapSize); sun.shadow.map?.dispose(); sun.shadow.map = null;
   bloom.enabled = p.bloom; if (p.bloom) setBloomMips(bloom, p.bloomMips); resize();
+  lighting.setBakedGrade(p.bakeGrade); // Low/Medium: grade folded into light/fog colours (no grade pass)
   // Low allows a single point light: the act fire keeps it, the stand-in chest glow goes.
   standin.object.traverse((o) => { if (o.isPointLight) o.visible = p.pointLights > 1; });
   document.getElementById('quality').value = quality.auto ? 'auto' : quality.tier;
