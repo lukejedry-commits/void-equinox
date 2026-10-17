@@ -7,10 +7,21 @@ import { RAPIER } from '../physics/world.js';
 import { CAMERA as CF } from '../config/feel.js';
 
 const D = Math.PI / 180;
+// Player FOV slider (vertical degrees). FOV_MAX is the single place to change the cap.
+export const FOV_MIN = 60;
+export const FOV_MAX = 80;
+export const clampFov = (v) => Math.min(FOV_MAX, Math.max(FOV_MIN, Number.isFinite(+v) ? +v : FOV_MIN));
+// Vertical FOV for an aspect: the user's slider value, but in portrait never narrower than
+// the 65 deg horizontal floor (vFov = 2 atan(tan(65/2) / aspect)).
+export function verticalFov(aspect, userFov, hFloorDeg = 65) {
+  const v = clampFov(userFov);
+  if (aspect >= 1) return v;
+  return Math.max(v, 2 * Math.atan(Math.tan((hFloorDeg * D) / 2) / aspect) / D);
+}
 // Feel numbers (sensitivity, smoothing, lock-on LOS) come from src/config/feel.js; entries still
 // marked TODO(Mechanics) were not covered by the Mechanics feel sheet.
 export const CAMERA_TUNING = {
-  fovDeg: 60,              // vertical FOV. TODO(Mechanics)
+  fovDeg: 60,              // default vertical FOV (slider FOV_MIN..FOV_MAX)
   near: 0.1,               // TODO(Mechanics)
   distance: 4.5,           // metres behind pivot (landscape). TODO(Mechanics)
   portraitHFovDeg: 65,     // portrait (aspect < 1): vertical FOV chosen so horizontal FOV >= this
@@ -50,12 +61,11 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
   const T = tuning;
   camera.fov = T.fovDeg; camera.near = T.near; camera.updateProjectionMatrix();
   const st = { yaw: 0, pitch: T.defaultPitchDeg * D, tYaw: 0, tPitch: T.defaultPitchDeg * D, dist: T.distance, lock: null,
-    fov: T.fovDeg, baseDist: T.distance, framed: false };
+    fov: T.fovDeg, baseDist: T.distance, framed: false, userFov: clampFov(T.fovDeg) };
   // Portrait framing (render-side only): target FOV / distance from the current aspect.
   function frameTargets() {
     const a = camera.aspect;
-    if (a < 1) return { fov: 2 * Math.atan(Math.tan((T.portraitHFovDeg * D) / 2) / a) / D, dist: T.portraitDistance };
-    return { fov: T.fovDeg, dist: T.distance };
+    return { fov: verticalFov(a, st.userFov, T.portraitHFovDeg), dist: a < 1 ? T.portraitDistance : T.distance };
   }
   function applyFraming(dt) {
     const t = frameTargets();
@@ -168,6 +178,9 @@ export function createTPSCamera({ camera = new THREE.PerspectiveCamera(), phys =
   return {
     camera, state: st, update, attach, toggleLock,
     get yaw() { return st.yaw; },
+    // FOV slider (vertical deg, clamped to FOV_MIN..FOV_MAX); blends like orientation changes.
+    setFov(v) { st.userFov = clampFov(v); return st.userFov; },
+    get userFov() { return st.userFov; },
     // Programmatic orbit (tests / scripted shots).
     orbit(dYaw, dPitch = 0) { if (!st.lock) { st.tYaw += dYaw; st.tPitch += dPitch; } },
     setYaw(y, p = st.pitch) { st.yaw = st.tYaw = y; st.pitch = st.tPitch = p; },

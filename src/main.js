@@ -13,7 +13,7 @@ import { createPerf } from './debug/perf.js';
 import { createTouchControls } from './ui/touch.js';
 import { createGradeTimer } from './debug/gradetimer.js';
 import { createDrawCallProbe } from './debug/drawcalls.js';
-import { createTPSCamera } from './render/camera.js';
+import { createTPSCamera, FOV_MIN, FOV_MAX } from './render/camera.js';
 import { addRim } from './render/rim.js';
 import { createStandin } from './render/standin.js';
 import { buildBatches } from './render/batch.js';
@@ -73,6 +73,15 @@ const tps = createTPSCamera({ camera, phys: scene.phys, targets: [{
   onLock: (on) => { dummyRim.rimStrength.value = on ? 0.9 : 0; },
 }], onFade: (o) => standin.setFade(o) });
 tps.attach(renderer.domElement);
+// FOV slider: range comes from FOV_MIN/FOV_MAX (camera.js); persisted per device.
+{
+  const fovEl = document.getElementById('fov'), fovVal = document.getElementById('fovVal');
+  fovEl.min = FOV_MIN; fovEl.max = FOV_MAX;
+  let saved = null; try { saved = localStorage.getItem('voidEquinox.fov'); } catch { /* ignore */ }
+  const setF = (v) => { const f = tps.setFov(v); fovEl.value = f; fovVal.textContent = f; try { localStorage.setItem('voidEquinox.fov', String(f)); } catch { /* ignore */ } };
+  setF(saved ?? FOV_MIN);
+  fovEl.addEventListener('input', () => setF(fovEl.value));
+}
 window.__tps = tps;
 // ?shot: scripted framing for docs screenshots (render-side only).
 if (params.has('shot')) { tps.setYaw(-0.5, 0.18); tps.toggleLock(); }
