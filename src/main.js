@@ -11,6 +11,7 @@ import { createInput } from './core/input.js';
 import { createQuality, createLimiter } from './render/quality.js';
 import { createPerf } from './debug/perf.js';
 import { createTouchControls } from './ui/touch.js';
+import { drawReference } from './ui/brightness.js';
 import { detectControlMode, loadControlMode, saveControlMode } from './ui/controlmode.js';
 import { createGradeTimer } from './debug/gradetimer.js';
 import { createDrawCallProbe } from './debug/drawcalls.js';
@@ -102,6 +103,14 @@ addEventListener('keydown', (e) => {
   else if (e.code === 'KeyU') tell.schedule(clock + tell.leadFor({ silence: true }), { unblockable: true, silence: true });
 });
 window.__lighting = lighting;
+// Brightness (+-0.25 stop, pre tone mapping) with a 'barely visible' reference symbol.
+{
+  const bEl = document.getElementById('bright'), bVal = document.getElementById('brightVal'), ref = document.getElementById('brightRef');
+  let saved = null; try { saved = localStorage.getItem('voidEquinox.brightness'); } catch { /* ignore */ }
+  const setB = (v) => { const b = lighting.setBrightness(v); bEl.value = b; bVal.textContent = (b >= 0 ? '+' : '') + b.toFixed(2); drawReference(ref, b); try { localStorage.setItem('voidEquinox.brightness', String(b)); } catch { /* ignore */ } };
+  setB(params.has('brightness') ? params.get('brightness') : (saved ?? 0));
+  bEl.addEventListener('input', () => setB(bEl.value));
+}
 
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(three, camera), outputPass = new OutputPass();

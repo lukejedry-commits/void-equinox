@@ -6,6 +6,11 @@ import * as THREE from 'three';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
 export const BLEND_SEC = 3;
+// Player brightness: +-0.25 stop of exposure, applied before tone mapping (multiplies
+// toneMappingExposure, including the presence exposure, so presence keeps its relative lift).
+export const BRIGHTNESS_STOPS = 0.25;
+export const clampBrightness = (b) => Math.max(-BRIGHTNESS_STOPS, Math.min(BRIGHTNESS_STOPS, Number.isFinite(+b) ? +b : 0));
+export const brightnessScale = (b) => Math.pow(2, clampBrightness(b));
 export const PRESENCE = { rampIn: 1.5, release: 3, exposure: 1.6, saturation: 0.3, flat: 0xf4f1e6, fog: 0xc4c0b4, fogScale: 0.7, hemiInt: 0.7, keyInt: 0.1, albedoMax: 0.85 };
 // PRESENCE.hemiInt: hemisphere fill target under presence; with ground colour -> flat this
 // makes box undersides / contact areas flat and pale instead of the darkest pixels.
@@ -137,7 +142,7 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
   };
   let from = resolve(PROFILES[initial]), to = resolve(PROFILES[initial]);
   const cur = resolve(PROFILES[initial]), out = clone(cur);
-  let t = 1, current = initial;
+  let t = 1, current = initial, brightness = 0;
   // presence: 0..1; on = held
   const presence = { value: 0, on: false };
   const flat = new THREE.Color(PRESENCE.flat), paleFog = new THREE.Color(PRESENCE.fog);
@@ -177,7 +182,7 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
     sun.shadow.intensity = 1 - p;
     hemi.color.copy(out.sky); hemi.groundColor.copy(out.ground); hemi.intensity = out.hemiInt;
     fog.color.copy(out.fog); fog.density = out.fogDensity; applySky(out.fog, out.skyGrad * (1 - p));
-    renderer.toneMappingExposure = out.exposure;
+    renderer.toneMappingExposure = out.exposure * brightnessScale(brightness);
     grade.uniforms.uSaturation.value = out.saturation;
     grade.uniforms.uLift.value.copy(out.lift).multiplyScalar(1 - p);
     grade.uniforms.uPresence.value = p;
@@ -195,6 +200,7 @@ export function createLighting({ scene, renderer, sun, hemi, fire = null, initia
   setProfile(initial, 0); apply();
   return {
     uniforms, grade, presence, patchMaterial, patchScene, setProfile, setPresence, update,
+    setBrightness(b) { brightness = clampBrightness(b); apply(); return brightness; }, get brightness() { return brightness; },
     get profile() { return current; }, get blend() { return t; }, get state() { return out; },
     weights: () => ({ cloakRimMin: out.cloakRimMin, decay: out.decay, fire: out.fire, winter: out.winter, presence: presence.value }),
   };
